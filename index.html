@@ -27,43 +27,18 @@
         line-height: 1.4; /* Body 140% */
         letter-spacing: 0; /* Body 0% */
       }
-      /* Custom scrollbar for neatness.
-         Firefox (and some Edge/Windows configurations) ignore the
-         WebKit-only ::-webkit-scrollbar rules below entirely and fall back
-         to the OS's own wide, square-cornered scrollbar, which visually
-         breaks out of any rounded-corner (rounded-lg/xl) container it sits
-         inside — the scrollbar-width/scrollbar-color properties are the
-         standard, cross-browser equivalent that keeps it thin everywhere. */
+      /* Scrollbars hidden everywhere (still scrollable — only the visible
+         bar is removed) — scrollbar-width:none is the standard Firefox
+         property, ::-webkit-scrollbar{display:none} covers Chrome/Safari/
+         Edge, and -ms-overflow-style covers old Edge/IE. */
       * {
-        scrollbar-width: thin;
-        scrollbar-color: #c1c1c1 #f1f1f1;
-      }
-      .dark * {
-        scrollbar-color: #4b5563 #1f2937;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
       }
       ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 3px;
-      }
-      .dark ::-webkit-scrollbar-track {
-        background: #1f2937;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 3px;
-      }
-      .dark ::-webkit-scrollbar-thumb {
-        background: #4b5563;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #a8a8a8;
-      }
-      .dark ::-webkit-scrollbar-thumb:hover {
-        background: #6b7280;
+        display: none;
+        width: 0;
+        height: 0;
       }
       /* Hide the native up/down spinner on any remaining type="number"
          input across the app (Chrome/Safari/Edge + Firefox) — most price/
