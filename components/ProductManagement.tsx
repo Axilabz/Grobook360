@@ -28,6 +28,10 @@ import { UnitOfMeasure, listUnits, createUnit } from '../api/units';
 // Standard GST slabs — deliberately a closed, static set (not free-text),
 // since GST rates are a fixed, government-defined list, not an open field.
 const GST_RATE_OPTIONS = ['0', '3', '5', '12', '18', '28'];
+// Display form for the shared Select component (which renders option labels
+// verbatim) — this is also what's stored transiently in the `%`-suffixed
+// UI state; stripped back to a plain number before it ever reaches the API.
+const GST_RATE_DISPLAY_OPTIONS = GST_RATE_OPTIONS.map((rate) => `${rate}%`);
 
 // Restricts a price field's typed input to digits and at most one decimal
 // point — no minus sign, no "e" exponent notation, no letters. Used instead
@@ -520,22 +524,13 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ mode, product, onCl
               onChange={(e) => setHsnCode(e.target.value.replace(/\D/g, ''))}
               error={errors.hsnCode}
             />
-            <div className="relative mb-10 w-full">
-              <label className="block text-[13px] font-medium text-gray-600 dark:text-gray-400 mb-1.5">
-                GST Rate % <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={gstRate}
-                onChange={(e) => setGstRate(e.target.value)}
-                className={`w-full px-3 py-3 rounded-md border text-[15px] bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-1 ${errors.gstRate ? 'border-red-500' : 'border-blue-300 dark:border-gray-600 focus:border-blue-500 focus:ring-blue-500'}`}
-              >
-                <option value="" disabled>Select GST rate…</option>
-                {GST_RATE_OPTIONS.map((rate) => (
-                  <option key={rate} value={rate}>{rate}%</option>
-                ))}
-              </select>
-              {errors.gstRate && <p className="text-[12px] text-red-500 mt-1">{errors.gstRate}</p>}
-            </div>
+            <Select
+              label="GST Rate %"
+              options={GST_RATE_DISPLAY_OPTIONS}
+              value={gstRate ? `${gstRate}%` : ''}
+              onChange={(v) => setGstRate(v.replace('%', ''))}
+              error={errors.gstRate}
+            />
           </div>
 
           {/* Unit Information */}
