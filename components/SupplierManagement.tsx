@@ -7,6 +7,7 @@ import Input from './Input';
 import Select from './Select';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import ExportButton from '../shared/ExportButton';
 import { ApiError, ConcurrencyConflictError } from '../api/client';
 import {
   Supplier,
@@ -142,6 +143,16 @@ const SupplierManagement: React.FC = () => {
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </select>
+
+          <ExportButton
+            resource="suppliers"
+            exportPermission="suppliers.export"
+            search={search || undefined}
+            status={statusFilter || undefined}
+            page={page}
+            pageSize={10}
+            totalItems={totalItems}
+          />
 
           {canCreate && (
             <button

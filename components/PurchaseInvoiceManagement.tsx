@@ -7,6 +7,7 @@ import {
 import Input from './Input';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import ExportButton from '../shared/ExportButton';
 import { ApiError } from '../api/client';
 import {
   PurchaseInvoiceListItem,
@@ -117,6 +118,15 @@ const PurchaseInvoiceManagement: React.FC = () => {
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
+          <ExportButton
+            resource="purchase_invoices"
+            exportPermission="purchase_invoice.export"
+            search={search || undefined}
+            status={statusFilter || undefined}
+            page={page}
+            pageSize={10}
+            totalItems={totalItems}
+          />
           {canCreate && (
             <>
               <button onClick={() => setShowCreateFromPoModal(true)} className="border border-[#0066ff] text-[#0066ff] font-semibold text-[14px] px-4 py-2 rounded-lg flex items-center justify-center gap-2 whitespace-nowrap">

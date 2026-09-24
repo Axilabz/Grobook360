@@ -18,6 +18,7 @@ import {
   deactivateCustomer,
 } from '../api/customers';
 import { GST_STATE_CODES, stateNameForCode, stateCodeForName } from '../shared/gstStateCodes';
+import ExportButton from '../shared/ExportButton';
 
 const STATUS_BADGE: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -142,6 +143,16 @@ const CustomerManagement: React.FC = () => {
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </select>
+
+          <ExportButton
+            resource="customers"
+            exportPermission="customers.export"
+            search={search || undefined}
+            status={statusFilter || undefined}
+            page={page}
+            pageSize={10}
+            totalItems={totalItems}
+          />
 
           {canCreate && (
             <button

@@ -12,6 +12,7 @@ from app.api.v1.gst import router as gst_router
 from app.api.v1.payroll import router as payroll_router
 from app.api.v1.reports import router as reports_router
 from app.api.v1.eway_bills import router as eway_bills_router
+from app.api.v1.exports import router as exports_router
 from app.api.v1.goods_receipts import router as goods_receipts_router
 from app.api.v1.integration_operations import router as integration_operations_router
 from app.api.v1.inventory import router as inventory_router
@@ -62,3 +63,4 @@ api_router.include_router(accounting_router)
 api_router.include_router(gst_router)
 api_router.include_router(reports_router)
 api_router.include_router(payroll_router)
+api_router.include_router(exports_router)

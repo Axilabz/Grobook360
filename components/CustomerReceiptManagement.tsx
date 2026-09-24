@@ -6,6 +6,7 @@ import {
 import Input from './Input';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import ExportButton from '../shared/ExportButton';
 import { ApiError } from '../api/client';
 import { Customer } from '../api/customers';
 import CustomerSelector from '../shared/CustomerSelector';
@@ -87,6 +88,15 @@ const CustomerReceiptManagement: React.FC = () => {
             <option value="">All Statuses</option>
             {['DRAFT', 'POSTED', 'REVERSED'].map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
+          <ExportButton
+            resource="customer_receipts"
+            exportPermission="customer_receipt.export"
+            search={search || undefined}
+            status={statusFilter || undefined}
+            page={page}
+            pageSize={10}
+            totalItems={totalItems}
+          />
           {canCreate && (
             <button onClick={() => setShowCreateModal(true)} className="bg-[#0066ff] hover:bg-blue-700 text-white font-semibold text-[14px] px-4 py-2 rounded-lg flex items-center justify-center gap-2 whitespace-nowrap">
               <Plus size={16} /> New Receipt
