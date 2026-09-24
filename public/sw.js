@@ -12,7 +12,12 @@
 // every business read/write goes through the real network (or IndexedDB
 // directly) under the application's own tenant/auth-aware logic.
 
-const SHELL_CACHE = 'app-shell-v1';
+// Bump this on every shell asset change. A cache-first index.html/manifest
+// silently keeps serving a stale shell forever otherwise — the version
+// string is what forces install()/activate() to fetch+swap in the new
+// files (a real incident: an index.html scrollbar-CSS fix wasn't visible
+// to an already-installed user until this was bumped).
+const SHELL_CACHE = 'app-shell-v2';
 const SHELL_ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (event) => {
@@ -40,6 +45,27 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // Navigation/HTML requests: network-first, falling back to the cached
+  // shell only when offline. A cache-first strategy here would mean every
+  // future index.html edit (styling, meta tags, etc.) stays invisible to
+  // an already-installed user indefinitely, even after this file's own
+  // cache-bust — the whole point of the app shell is offline *fallback*,
+  // not a permanent pin to whatever HTML happened to be live at install
+  // time.
+  const isHtmlRequest = event.request.mode === 'navigate' || url.pathname === '/index.html';
+  if (isHtmlRequest) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const responseClone = response.clone();
+          caches.open(SHELL_CACHE).then((cache) => cache.put(event.request, responseClone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
     return;
   }
 
