@@ -1,0 +1,58 @@
+[
+ [
+  6,
+  "This FRD translates the current SaaS MVP product baseline into detailed, testable functional requirements. It defines actors, navigation, sub-modules, screens, inputs, outputs, validations, workflows, business rules, permissions, exceptions, integrations, data behavior and acceptance criteria."
+ ],
+ [
+  7,
+  "This document is implementation-oriented. It is intended to let engineering build, UX design, QA derive test cases, database teams map data elements, and product stakeholders validate scope without silently re-interpreting business intent."
+ ],
+ [
+  8,
+  "PRD v3.0 is the current product-level baseline. Where the legacy FRD, prototype, or earlier documents conflict with PRD v3.0, the conflict is identified rather than silently resolved. The PRD states that subsequent Business Rules, Workflow, Accounting, GST, Integration, Offline Sync, Role/Entitlement, API and UAT specifications complete the development baseline."
+ ],
+ [
+  9,
+  "3. PRODUCT OVERVIEW"
+ ],
+ [
+  21,
+  "Subscription billing inside the product."
+ ],
+ [
+  31,
+  "All users authenticate through the same production sign-in mechanism. The server resolves the user's role and tenant context; the user does not select a role at login. The UI exposes only entitled navigation and actions, while server-side RBAC is authoritative."
+ ],
+ [
+  64,
+  "2. Select products and enter quantities."
+ ],
+ [
+  81,
+  "12. MODULE 4 — PRODUCT & INVENTORY"
+ ],
+ [
+  82,
+  "12.1 PRODUCT MASTER"
+ ],
+ [
+  99,
+  "15.4 HSN / TAX SPLIT"
+ ],
+ [
+  101,
+  "Live IRN and e-way bill generation is in M1. The exact production provider, authentication model, payload mapping, retry rules and government-service error mapping belong in the E-Invoice / E-Way Bill Integration Specification and API contract. The FRD therefore defines the business trigger and outcome, not an invented external API contract."
+ ],
+ [
+  172,
+  "Engineering must not silently resolve an OPEN decision or introduce new scope. Any such change requires a documented product decision and corresponding update to the affected requirements, data model, API contract and test coverage."
+ ],
+ [
+  176,
+  "PRD v3.0 – current product requirements baseline dated 02 September 2026."
+ ],
+ [
+  179,
+  "Existing SaaS Product FRD Complete Edition v1.0 – detailed legacy module requirements used as supporting evidence; conflicts are not silently carried forward."
+ ]
+]

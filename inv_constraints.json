@@ -1,0 +1,38 @@
+[
+ [
+  "location",
+  "PK",
+  "pk_location",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "location",
+  "INDEX",
+  "idx_location_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "stock_ledger_entry",
+  "PK",
+  "pk_stock_ledger_entry",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "stock_ledger_entry",
+  "INDEX",
+  "idx_stock_ledger_entry_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "stock_adjustment",
+  "PK",
+  "pk_stock_adjustment",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "stock_adjustment",
+  "INDEX",
+  "idx_stock_adjustment_tenant",
+  "INDEX (tenant_id)"
+ ]
+]

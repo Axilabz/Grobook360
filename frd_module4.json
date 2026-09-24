@@ -1,0 +1,21 @@
+[
+ "12. MODULE 4 — PRODUCT & INVENTORY",
+ "12.1 PRODUCT MASTER",
+ "12.2 STOCK LEDGER",
+ "12.3 INVENTORY RULES",
+ "13. MODULE 5 — CUSTOMER & SUPPLIER MANAGEMENT",
+ "13.1 CUSTOMERS",
+ "13.2 SUPPLIERS",
+ "13.3 COUNTERPARTY RULES",
+ "14. MODULE 6 — ACCOUNTING",
+ "The MVP accounting model uses a tenant-scoped Chart of Accounts, Journal Entry + Journal Line double-entry structure, ledger views, Trial Balance, P&L, Balance Sheet and reconciliation. Posted accounting records are immutable.",
+ "14.1 CHART OF ACCOUNTS",
+ "14.2 JOURNAL & LEDGER",
+ "14.3 FINANCIAL STATEMENTS",
+ "14.4 ACCOUNTING POSTING PRINCIPLES",
+ "15. MODULE 7 — GST & TAX MANAGEMENT",
+ "15.1 GST CALCULATION",
+ "15.2 GSTR-1",
+ "15.3 GSTR-3B",
+ "15.4 HSN / TAX SPLIT"
+]

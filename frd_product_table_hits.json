@@ -1,0 +1,468 @@
+[
+ [
+  0,
+  5,
+  [
+   "Status",
+   "Draft – Pending Business / Product Sign-off"
+  ]
+ ],
+ [
+  0,
+  7,
+  [
+   "Prepared By",
+   "Product Owner / Senior Business Analyst"
+  ]
+ ],
+ [
+  0,
+  8,
+  [
+   "Primary Audience",
+   "Product, BA, UX, Engineering, QA, Database, DevOps, Stakeholders"
+  ]
+ ],
+ [
+  0,
+  9,
+  [
+   "Current Product Baseline",
+   "PRD v3.0 – Development Baseline / Founder Review"
+  ]
+ ],
+ [
+  2,
+  1,
+  [
+   "Core operation",
+   "Customer/Supplier → Product → Sale/Purchase → Stock → Payment → Accounting"
+  ]
+ ],
+ [
+  3,
+  1,
+  [
+   "Company Owner / Tenant Admin",
+   "Run the business with financial visibility",
+   "Users, customers/suppliers, products, sales, purchase, inventory, payments, accounting, GST, payroll, reports"
+  ]
+ ],
+ [
+  3,
+  2,
+  [
+   "Manager",
+   "Control day-to-day operations without Owner-level access",
+   "Customers/suppliers, products/inventory, sales/purchase, collections, permitted accounting/GST/reporting, operational oversight"
+  ]
+ ],
+ [
+  3,
+  3,
+  [
+   "Salesperson",
+   "Bill and collect in the field despite weak connectivity",
+   "Customer lookup/quick-add, product lookup, sales, returns/collections within entitlement, offline sync"
+  ]
+ ],
+ [
+  4,
+  3,
+  [
+   "Product & Inventory",
+   "IN",
+   "Product CRUD, pricing, UOM, stock in/out/transfer, reorder alerts, stock ledger"
+  ]
+ ],
+ [
+  4,
+  14,
+  [
+   "Batch / Expiry",
+   "OPEN",
+   "Schema reserved; exact product behavior not confirmed"
+  ]
+ ],
+ [
+  5,
+  1,
+  [
+   "Confirmed Requirement",
+   "Explicitly supported by the current product baseline or approved source material."
+  ]
+ ],
+ [
+  5,
+  4,
+  [
+   "BA Clarification Required",
+   "Requirement cannot be determined confidently from the available sources and requires product/business decision."
+  ]
+ ],
+ [
+  7,
+  5,
+  [
+   "Products",
+   "Full",
+   "Full",
+   "View",
+   "No"
+  ]
+ ],
+ [
+  8,
+  9,
+  [
+   "FR-SI-09",
+   "Temporarily lock account after 5 consecutive failed attempts for 15 minutes.",
+   "Must",
+   "Legacy FRD; product confirmation required"
+  ]
+ ],
+ [
+  11,
+  5,
+  [
+   "FR-DASH-05",
+   "Display low-stock products for entitled roles using current stock versus reorder level.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  13,
+  1,
+  [
+   "Product",
+   "Select",
+   "Yes",
+   "Existing active product from Product Master."
+  ]
+ ],
+ [
+  13,
+  5,
+  [
+   "GST Rate",
+   "Derived",
+   "Yes for GST item",
+   "From product/tax rule."
+  ]
+ ],
+ [
+  17,
+  4,
+  [
+   "FR-INV-04",
+   "For B2B GST transactions require applicable GSTIN/HSN information.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  20,
+  1,
+  [
+   "FR-PROD-01",
+   "Create/edit Product with name, SKU, HSN, GST rate, Cost Price, Selling Price, MRP, UOM, opening stock and reorder level as applicable.",
+   "Must",
+   "PRD v3.0 + legacy FRD"
+  ]
+ ],
+ [
+  20,
+  2,
+  [
+   "FR-PROD-02",
+   "Only active products may be selected for new documents.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  20,
+  3,
+  [
+   "FR-PROD-03",
+   "Show product list with operational pricing, stock and reorder status.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  20,
+  4,
+  [
+   "FR-PROD-04",
+   "Owner and Manager may create/edit/deactivate; Salesperson has read-only visibility.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  20,
+  5,
+  [
+   "FR-PROD-05",
+   "Deactivation removes product from new transaction selection but preserves historical references.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  21,
+  3,
+  [
+   "FR-STK-03",
+   "Display chronological ledger entries with date, product, movement type and quantity.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  21,
+  5,
+  [
+   "FR-STK-05",
+   "Stock Ledger is authoritative; Product stock quantity is a cache/read optimization and must not be treated as source of truth.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  30,
+  4,
+  [
+   "FR-GST-04",
+   "Require applicable GSTIN/HSN data for B2B GST transactions.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  33,
+  2,
+  [
+   "FR-HSN-01",
+   "Group sold line items by HSN and show quantity, taxable value and tax.",
+   "Must",
+   "Legacy FRD"
+  ]
+ ],
+ [
+  38,
+  3,
+  [
+   "Stock Report",
+   "Product, current stock, movement/reorder information",
+   "Owner/Manager; limited Salesperson"
+  ]
+ ],
+ [
+  43,
+  0,
+  [
+   "CATEGORY",
+   "EXPECTED BEHAVIOR"
+  ]
+ ],
+ [
+  44,
+  6,
+  [
+   "BR-006",
+   "B2B GST transactions require applicable GSTIN/HSN information."
+  ]
+ ],
+ [
+  47,
+  1,
+  [
+   "INT-001",
+   "GST/GSP verification",
+   "Tenant/customer GSTIN lookup",
+   "Outbound / response",
+   "Validate/fetch available business information",
+   "Production provider selection"
+  ]
+ ],
+ [
+  48,
+  0,
+  [
+   "ID",
+   "CATEGORY",
+   "REQUIREMENT / TARGET"
+  ]
+ ],
+ [
+  49,
+  4,
+  [
+   "ASM-004",
+   "Product stock quantity is a cache over Stock Ledger.",
+   "Requires reconciliation capability."
+  ]
+ ],
+ [
+  50,
+  1,
+  [
+   "DEP-001",
+   "GST/NIC/GSP sandbox and production access",
+   "GST, IRN, e-way, onboarding GST lookup"
+  ]
+ ],
+ [
+  51,
+  3,
+  [
+   "OQ-003",
+   "Onboarding",
+   "Select production GST verification provider.",
+   "Integration/procurement",
+   "Open"
+  ]
+ ],
+ [
+  53,
+  1,
+  [
+   "Authentication",
+   "Covered",
+   "Legacy prototype behavior includes demo-only simplifications; production requirements are retained separately."
+  ]
+ ],
+ [
+  53,
+  3,
+  [
+   "Billing",
+   "Covered",
+   "Production rules now follow PRD v3.0; exact detailed workflow remains in supporting specifications."
+  ]
+ ],
+ [
+  53,
+  6,
+  [
+   "Accounting",
+   "Covered",
+   "Prototype financial statements were simplified; production model follows PRD/database baseline."
+  ]
+ ],
+ [
+  53,
+  7,
+  [
+   "GST",
+   "Covered",
+   "Prototype GST reports were demo-only; production requires authoritative transaction-derived output and live IRN/e-way integration."
+  ]
+ ],
+ [
+  53,
+  9,
+  [
+   "User Management",
+   "Covered",
+   "Invitation flow was not implemented in prototype; remains a production requirement subject to channel decision."
+  ]
+ ],
+ [
+  53,
+  11,
+  [
+   "Platform Administration",
+   "Covered",
+   "Production support access must follow explicit consent/audit controls."
+  ]
+ ],
+ [
+  55,
+  3,
+  [
+   "Product/Inventory",
+   "Covered",
+   "12"
+  ]
+ ],
+ [
+  56,
+  12,
+  [
+   "Prototype/PRD alignment reviewed",
+   "PASS",
+   "Gaps and demo-vs-production differences called out."
+  ]
+ ],
+ [
+  56,
+  13,
+  [
+   "100% development-ready",
+   "NOT YET",
+   "Open product decisions and supporting specifications remain gating items."
+  ]
+ ],
+ [
+  57,
+  1,
+  [
+   "Product / Business Owner",
+   "TBD",
+   "Overall product scope and business rules",
+   "Pending"
+  ]
+ ],
+ [
+  57,
+  2,
+  [
+   "Product & Backend",
+   "Somasundaram",
+   "Scope, architecture, database/API alignment",
+   "Pending"
+  ]
+ ],
+ [
+  57,
+  3,
+  [
+   "Product & Testing",
+   "Rahul",
+   "Acceptance criteria and UAT alignment",
+   "Pending"
+  ]
+ ],
+ [
+  57,
+  5,
+  [
+   "Platform / Product Owner",
+   "TBD",
+   "Final open decisions and release approval",
+   "Pending"
+  ]
+ ],
+ [
+  58,
+  13,
+  [
+   "Inventory",
+   "Products",
+   "Owner, Manager; Salesperson view"
+  ]
+ ],
+ [
+  58,
+  19,
+  [
+   "GST",
+   "GSTR-1 / GSTR-3B / Tax Split / HSN",
+   "Owner, Manager permitted"
+  ]
+ ]
+]

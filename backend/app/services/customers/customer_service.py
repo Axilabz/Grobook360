@@ -1,0 +1,294 @@
+"""Customer Management service (PROMPT-007).
+
+Authorization is enforced by the router (require_permission) before these
+methods run; this service assumes the caller is already authorized and
+focuses on tenant scoping, validation, duplicate rules and concurrency —
+mirroring app.services.user_management.user_service's shape exactly.
+"""
+
+import uuid
+from dataclasses import dataclass
+from decimal import Decimal
+
+from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.concurrency import check_row_version
+from app.core.error_codes import CUST_DUPLICATE_GSTIN, CUST_NOT_FOUND, CUST_VALIDATION
+from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
+from app.core.validators import is_valid_state_code
+from app.models.customer import Customer
+from app.services.audit.audit_service import AuditService
+
+_MAX_CODE_ATTEMPTS = 5
+
+
+@dataclass(frozen=True)
+class CustomerPage:
+    items: list[Customer]
+    total_items: int
+
+
+def _snapshot(customer: Customer) -> dict:
+    return {
+        "name": customer.name,
+        "owner_name": customer.owner_name,
+        "phone": customer.phone,
+        "email": customer.email,
+        "gstin": customer.gstin,
+        "state_code": customer.state_code,
+        "address": customer.address,
+        "city": customer.city,
+        "pincode": customer.pincode,
+        "region": customer.region,
+        "gps_location": customer.gps_location,
+        "credit_limit": str(customer.credit_limit),
+        "payment_terms_days": customer.payment_terms_days,
+    }
+
+
+class CustomerService:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def list_customers(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        page: int,
+        page_size: int,
+        search: str | None,
+        status_filter: str | None,
+        state_code_filter: str | None,
+        gst_registered: bool | None,
+    ) -> CustomerPage:
+        base = select(Customer).where(Customer.tenant_id == tenant_id)
+
+        if search:
+            like = f"%{search}%"
+            base = base.where(
+                or_(
+                    Customer.name.ilike(like),
+                    Customer.customer_code.ilike(like),
+                    Customer.gstin.ilike(like),
+                    Customer.phone.ilike(like),
+                )
+            )
+        if status_filter:
+            base = base.where(Customer.status == status_filter)
+        if state_code_filter:
+            base = base.where(Customer.state_code == state_code_filter)
+        if gst_registered is True:
+            base = base.where(Customer.gstin.is_not(None))
+        elif gst_registered is False:
+            base = base.where(Customer.gstin.is_(None))
+
+        count_stmt = select(func.count()).select_from(base.subquery())
+        total_items = (await self._session.execute(count_stmt)).scalar_one()
+
+        paged = base.order_by(Customer.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+        items = (await self._session.execute(paged)).scalars().all()
+
+        return CustomerPage(items=list(items), total_items=total_items)
+
+    async def get_customer(self, *, tenant_id: uuid.UUID, customer_id: uuid.UUID) -> Customer:
+        result = await self._session.execute(
+            select(Customer).where(Customer.id == customer_id, Customer.tenant_id == tenant_id)
+        )
+        customer = result.scalar_one_or_none()
+        if customer is None:
+            # Same message whether customer_id doesn't exist at all or belongs
+            # to another tenant — cross-tenant lookups must not be
+            # distinguishable from "not found" (established pattern, PROMPT-005).
+            raise NotFoundError("Customer not found", code=CUST_NOT_FOUND)
+        return customer
+
+    async def _check_duplicate_gstin(
+        self, tenant_id: uuid.UUID, gstin: str | None, *, exclude_customer_id: uuid.UUID | None = None
+    ) -> None:
+        if gstin is None:
+            return
+        # Recommended default (prompt S24): no duplicate ACTIVE customer with
+        # the same GSTIN in the same tenant. Not a DB constraint — Data
+        # Dictionary v3.0 defines no uniqueness on gstin — so this stays an
+        # app-level, documented business rule rather than a schema decision.
+        stmt = select(Customer).where(
+            Customer.tenant_id == tenant_id, Customer.gstin == gstin, Customer.status == "ACTIVE"
+        )
+        if exclude_customer_id is not None:
+            stmt = stmt.where(Customer.id != exclude_customer_id)
+        existing = (await self._session.execute(stmt)).scalars().first()
+        if existing is not None:
+            raise ConflictError("A customer with this GSTIN already exists.", code=CUST_DUPLICATE_GSTIN)
+
+    async def _next_customer_code(self, tenant_id: uuid.UUID, attempt: int) -> str:
+        # customer_code is not defined as system- vs. user-generated by any
+        # approved source (open decision — see PROMPT-007-NOTES.md).
+        # System-generation is used here for tenant-safe uniqueness without
+        # asking every caller to invent a collision-free scheme themselves.
+        count_stmt = select(func.count(Customer.id)).where(Customer.tenant_id == tenant_id)
+        count = (await self._session.execute(count_stmt)).scalar_one()
+        return f"CUST-{count + 1 + attempt:04d}"
+
+    async def create_customer(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        actor_user_id: uuid.UUID,
+        name: str,
+        owner_name: str,
+        phone: str,
+        email: str | None,
+        gstin: str | None,
+        state_code: str | None,
+        address: str | None,
+        city: str | None,
+        pincode: str | None,
+        region: str | None,
+        gps_location: str | None,
+        credit_limit: Decimal,
+        payment_terms_days: int,
+        ip_address: str | None,
+    ) -> Customer:
+        await self._check_duplicate_gstin(tenant_id, gstin)
+
+        last_error: Exception | None = None
+        for attempt in range(_MAX_CODE_ATTEMPTS):
+            code = await self._next_customer_code(tenant_id, attempt)
+            customer = Customer(
+                tenant_id=tenant_id,
+                customer_code=code,
+                name=name,
+                owner_name=owner_name,
+                phone=phone,
+                email=email,
+                gstin=gstin,
+                state_code=state_code,
+                address=address,
+                city=city,
+                pincode=pincode,
+                region=region,
+                gps_location=gps_location,
+                credit_limit=credit_limit,
+                payment_terms_days=payment_terms_days,
+                created_by=actor_user_id,
+                updated_by=actor_user_id,
+            )
+            try:
+                async with self._session.begin_nested():
+                    self._session.add(customer)
+                    await self._session.flush()
+                break
+            except IntegrityError as exc:
+                last_error = exc
+                continue
+        else:
+            raise ConflictError("Could not allocate a unique customer code. Please retry.") from last_error
+
+        await AuditService(self._session).record(
+            tenant_id=tenant_id,
+            actor_user_id=actor_user_id,
+            action="CUSTOMER_CREATED",
+            entity_type="customer",
+            entity_id=customer.id,
+            after=_snapshot(customer),
+            ip_address=ip_address,
+        )
+        return customer
+
+    async def update_customer(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        actor_user_id: uuid.UUID,
+        customer_id: uuid.UUID,
+        expected_row_version: int,
+        ip_address: str | None,
+        **fields,
+    ) -> Customer:
+        customer = await self.get_customer(tenant_id=tenant_id, customer_id=customer_id)
+        check_row_version(customer, expected_row_version)
+        before = _snapshot(customer)
+
+        gstin = fields.get("gstin", ...)
+        state_code = fields.get("state_code", ...)
+        effective_gstin = customer.gstin if gstin is ... else gstin
+        effective_state_code = customer.state_code if state_code is ... else state_code
+        if effective_gstin is not None:
+            gstin_state = effective_gstin[:2]
+            if effective_state_code is None:
+                effective_state_code = gstin_state
+            elif effective_state_code != gstin_state:
+                raise ValidationAppError(
+                    "State does not match the state encoded in the GSTIN", code=CUST_VALIDATION
+                )
+        elif effective_state_code is not None and not is_valid_state_code(effective_state_code):
+            raise ValidationAppError("Invalid state code", code=CUST_VALIDATION)
+
+        if effective_gstin != customer.gstin:
+            await self._check_duplicate_gstin(tenant_id, effective_gstin, exclude_customer_id=customer.id)
+
+        customer.gstin = effective_gstin
+        customer.state_code = effective_state_code
+
+        for field_name in (
+            "name", "owner_name", "phone", "email", "address", "city", "pincode",
+            "region", "gps_location", "credit_limit", "payment_terms_days",
+        ):
+            value = fields.get(field_name, ...)
+            if value is not ...:
+                setattr(customer, field_name, value)
+
+        customer.updated_by = actor_user_id
+        customer.row_version += 1
+        await self._session.flush()
+
+        await AuditService(self._session).record(
+            tenant_id=tenant_id,
+            actor_user_id=actor_user_id,
+            action="CUSTOMER_UPDATED",
+            entity_type="customer",
+            entity_id=customer.id,
+            before=before,
+            after=_snapshot(customer),
+            ip_address=ip_address,
+        )
+        return customer
+
+    async def _set_status(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        actor_user_id: uuid.UUID,
+        customer_id: uuid.UUID,
+        new_status: str,
+        expected_row_version: int,
+        ip_address: str | None,
+    ) -> Customer:
+        customer = await self.get_customer(tenant_id=tenant_id, customer_id=customer_id)
+        check_row_version(customer, expected_row_version)
+
+        previous_status = customer.status
+        customer.status = new_status
+        customer.updated_by = actor_user_id
+        customer.row_version += 1
+        await self._session.flush()
+
+        await AuditService(self._session).record(
+            tenant_id=tenant_id,
+            actor_user_id=actor_user_id,
+            action="CUSTOMER_ACTIVATED" if new_status == "ACTIVE" else "CUSTOMER_DEACTIVATED",
+            entity_type="customer",
+            entity_id=customer.id,
+            before={"status": previous_status},
+            after={"status": new_status},
+            ip_address=ip_address,
+        )
+        return customer
+
+    async def activate_customer(self, **kwargs) -> Customer:
+        return await self._set_status(new_status="ACTIVE", **kwargs)
+
+    async def deactivate_customer(self, **kwargs) -> Customer:
+        return await self._set_status(new_status="INACTIVE", **kwargs)

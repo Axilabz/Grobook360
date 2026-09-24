@@ -1,0 +1,26 @@
+[
+ [
+  "estimate",
+  "PK",
+  "pk_estimate",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "estimate",
+  "INDEX",
+  "idx_estimate_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "estimate_line",
+  "PK",
+  "pk_estimate_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "estimate_line",
+  "INDEX",
+  "idx_estimate_line_tenant",
+  "INDEX (tenant_id)"
+ ]
+]

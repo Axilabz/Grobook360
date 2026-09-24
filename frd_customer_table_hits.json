@@ -1,0 +1,337 @@
+[
+ [
+  2,
+  1,
+  [
+   "Core operation",
+   "Customer/Supplier → Product → Sale/Purchase → Stock → Payment → Accounting"
+  ]
+ ],
+ [
+  3,
+  1,
+  [
+   "Company Owner / Tenant Admin",
+   "Run the business with financial visibility",
+   "Users, customers/suppliers, products, sales, purchase, inventory, payments, accounting, GST, payroll, reports"
+  ]
+ ],
+ [
+  3,
+  2,
+  [
+   "Manager",
+   "Control day-to-day operations without Owner-level access",
+   "Customers/suppliers, products/inventory, sales/purchase, collections, permitted accounting/GST/reporting, operational oversight"
+  ]
+ ],
+ [
+  3,
+  3,
+  [
+   "Salesperson",
+   "Bill and collect in the field despite weak connectivity",
+   "Customer lookup/quick-add, product lookup, sales, returns/collections within entitlement, offline sync"
+  ]
+ ],
+ [
+  4,
+  2,
+  [
+   "Customer & Supplier Management",
+   "IN",
+   "Create/edit/view/deactivate, GSTIN, address/contact, commercial terms"
+  ]
+ ],
+ [
+  7,
+  3,
+  [
+   "Customers",
+   "Full",
+   "Full",
+   "Limited",
+   "No"
+  ]
+ ],
+ [
+  9,
+  2,
+  [
+   "FR-SU-02",
+   "Allow optional GSTIN lookup and populate available organization details through approved provider.",
+   "Must",
+   "Confirmed; provider TBD"
+  ]
+ ],
+ [
+  9,
+  3,
+  [
+   "FR-SU-03",
+   "Allow registration without GSTIN for non-GST/unregistered businesses.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  10,
+  6,
+  [
+   "ERR-SU-002",
+   "Invalid GSTIN",
+   "Reject lookup input and allow correction."
+  ]
+ ],
+ [
+  11,
+  4,
+  [
+   "FR-DASH-04",
+   "Display five most recent invoices with customer, invoice ID, amount and status; scope to own invoices for Salesperson.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  14,
+  1,
+  [
+   "FR-EST-01",
+   "Create an Estimate with Customer and one or more line items.",
+   "Must",
+   "Confirmed / legacy FRD"
+  ]
+ ],
+ [
+  14,
+  2,
+  [
+   "FR-EST-02",
+   "List estimates with ID, customer, date, value and status.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  17,
+  4,
+  [
+   "FR-INV-04",
+   "For B2B GST transactions require applicable GSTIN/HSN information.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  23,
+  1,
+  [
+   "FR-CUST-01",
+   "Create/edit Customer with business name, owner name, phone, optional email, region/beat, address, city, state, pin code, GPS location, optional GSTIN, payment terms and credit limit.",
+   "Must",
+   "Confirmed / legacy FRD"
+  ]
+ ],
+ [
+  23,
+  3,
+  [
+   "FR-CUST-03",
+   "Treat blank GSTIN as non-GST/unregistered party for billing/GST reporting.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  23,
+  4,
+  [
+   "FR-CUST-04",
+   "Use customer state with tenant state for applicable GST split logic.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  23,
+  5,
+  [
+   "FR-CUST-05",
+   "List customer summary with name, owner, phone, region, GSTIN, balance and status.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  24,
+  1,
+  [
+   "FR-SUPP-01",
+   "Create/edit Supplier with company name, owner/contact, phone, optional email, address, city, state, pin code, optional GSTIN and payment terms.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  24,
+  2,
+  [
+   "FR-SUPP-02",
+   "Do not capture Customer-only Region/Beat, GPS or Credit Limit fields for Supplier.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  24,
+  4,
+  [
+   "FR-SUPP-04",
+   "List supplier name, owner/contact, phone, city, GSTIN, balance and status.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  25,
+  2,
+  [
+   "BRULE-CUST-02",
+   "Deactivated customers/suppliers cannot be used for new transactions; historical documents remain available."
+  ]
+ ],
+ [
+  30,
+  4,
+  [
+   "FR-GST-04",
+   "Require applicable GSTIN/HSN data for B2B GST transactions.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  31,
+  1,
+  [
+   "FR-GSTR1-01",
+   "Generate B2B and B2C sales classifications from active/non-voided sales invoices.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  38,
+  1,
+  [
+   "Sales Report",
+   "Invoice-level sales, customer, salesperson, value, tax/status as applicable",
+   "Owner/Manager; Salesperson own"
+  ]
+ ],
+ [
+  41,
+  3,
+  [
+   "Customer/Supplier Quick Add",
+   "Minimal create offline"
+  ]
+ ],
+ [
+  44,
+  1,
+  [
+   "BR-001",
+   "One tenant represents one customer business in M1."
+  ]
+ ],
+ [
+  44,
+  2,
+  [
+   "BR-002",
+   "M1 supports one GSTIN per tenant."
+  ]
+ ],
+ [
+  44,
+  6,
+  [
+   "BR-006",
+   "B2B GST transactions require applicable GSTIN/HSN information."
+  ]
+ ],
+ [
+  47,
+  1,
+  [
+   "INT-001",
+   "GST/GSP verification",
+   "Tenant/customer GSTIN lookup",
+   "Outbound / response",
+   "Validate/fetch available business information",
+   "Production provider selection"
+  ]
+ ],
+ [
+  49,
+  2,
+  [
+   "ASM-002",
+   "One GSTIN per tenant in M1.",
+   "Determines tax registration model."
+  ]
+ ],
+ [
+  51,
+  9,
+  [
+   "OQ-009",
+   "Customers",
+   "Should exceeding credit limit hard-block invoice creation or remain advisory?",
+   "Sales control",
+   "Open"
+  ]
+ ],
+ [
+  52,
+  3,
+  [
+   "BR-CORE-03",
+   "HLR-03",
+   "FR-CUST-01..07 / FR-SUPP-01..05",
+   "Counterparty",
+   "Customer/Supplier",
+   "Counterparty rules",
+   "UAT-MASTER-001.."
+  ]
+ ],
+ [
+  53,
+  5,
+  [
+   "Customers/Suppliers",
+   "Covered",
+   "GPS/customer-only fields retained where supported by prior prototype requirements."
+  ]
+ ],
+ [
+  55,
+  2,
+  [
+   "Customer/Supplier",
+   "Covered",
+   "13"
+  ]
+ ],
+ [
+  58,
+  15,
+  [
+   "Master Data",
+   "Customers",
+   "Owner, Manager, Salesperson"
+  ]
+ ]
+]

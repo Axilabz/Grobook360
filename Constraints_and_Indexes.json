@@ -1,0 +1,686 @@
+[
+ [
+  "TABLE",
+  "TYPE",
+  "NAME",
+  "RULE"
+ ],
+ [
+  "tenant",
+  "PK",
+  "pk_tenant",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "user",
+  "PK",
+  "pk_user",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "user",
+  "INDEX",
+  "idx_user_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "role",
+  "PK",
+  "pk_role",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "role",
+  "INDEX",
+  "idx_role_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "permission",
+  "PK",
+  "pk_permission",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "permission",
+  "INDEX",
+  "idx_permission_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "user_role",
+  "PK",
+  "pk_user_role",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "user_role",
+  "INDEX",
+  "idx_user_role_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "role_permission",
+  "PK",
+  "pk_role_permission",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "role_permission",
+  "INDEX",
+  "idx_role_permission_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "audit_log",
+  "PK",
+  "pk_audit_log",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "audit_log",
+  "INDEX",
+  "idx_audit_log_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "customer",
+  "PK",
+  "pk_customer",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "customer",
+  "INDEX",
+  "idx_customer_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "supplier",
+  "PK",
+  "pk_supplier",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "supplier",
+  "INDEX",
+  "idx_supplier_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "location",
+  "PK",
+  "pk_location",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "location",
+  "INDEX",
+  "idx_location_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "unit_of_measure",
+  "PK",
+  "pk_unit_of_measure",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "unit_of_measure",
+  "INDEX",
+  "idx_unit_of_measure_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "product",
+  "PK",
+  "pk_product",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "product",
+  "INDEX",
+  "idx_product_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "product_unit_conversion",
+  "PK",
+  "pk_product_unit_conversion",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "product_unit_conversion",
+  "INDEX",
+  "idx_product_unit_conversion_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "estimate",
+  "PK",
+  "pk_estimate",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "estimate",
+  "INDEX",
+  "idx_estimate_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "sales_order",
+  "PK",
+  "pk_sales_order",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "sales_order",
+  "INDEX",
+  "idx_sales_order_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "delivery_challan",
+  "PK",
+  "pk_delivery_challan",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "delivery_challan",
+  "INDEX",
+  "idx_delivery_challan_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "sales_invoice",
+  "PK",
+  "pk_sales_invoice",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "sales_invoice",
+  "INDEX",
+  "idx_sales_invoice_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "sales_return",
+  "PK",
+  "pk_sales_return",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "sales_return",
+  "INDEX",
+  "idx_sales_return_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "credit_debit_note",
+  "PK",
+  "pk_credit_debit_note",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "credit_debit_note",
+  "INDEX",
+  "idx_credit_debit_note_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "estimate_line",
+  "PK",
+  "pk_estimate_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "estimate_line",
+  "INDEX",
+  "idx_estimate_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "sales_order_line",
+  "PK",
+  "pk_sales_order_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "sales_order_line",
+  "INDEX",
+  "idx_sales_order_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "delivery_challan_line",
+  "PK",
+  "pk_delivery_challan_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "delivery_challan_line",
+  "INDEX",
+  "idx_delivery_challan_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "sales_invoice_line",
+  "PK",
+  "pk_sales_invoice_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "sales_invoice_line",
+  "INDEX",
+  "idx_sales_invoice_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "sales_return_line",
+  "PK",
+  "pk_sales_return_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "sales_return_line",
+  "INDEX",
+  "idx_sales_return_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "credit_debit_note_line",
+  "PK",
+  "pk_credit_debit_note_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "credit_debit_note_line",
+  "INDEX",
+  "idx_credit_debit_note_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "purchase_order",
+  "PK",
+  "pk_purchase_order",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "purchase_order",
+  "INDEX",
+  "idx_purchase_order_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "goods_receipt",
+  "PK",
+  "pk_goods_receipt",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "goods_receipt",
+  "INDEX",
+  "idx_goods_receipt_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "purchase_invoice",
+  "PK",
+  "pk_purchase_invoice",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "purchase_invoice",
+  "INDEX",
+  "idx_purchase_invoice_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "purchase_return",
+  "PK",
+  "pk_purchase_return",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "purchase_return",
+  "INDEX",
+  "idx_purchase_return_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "purchase_order_line",
+  "PK",
+  "pk_purchase_order_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "purchase_order_line",
+  "INDEX",
+  "idx_purchase_order_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "goods_receipt_line",
+  "PK",
+  "pk_goods_receipt_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "goods_receipt_line",
+  "INDEX",
+  "idx_goods_receipt_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "purchase_invoice_line",
+  "PK",
+  "pk_purchase_invoice_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "purchase_invoice_line",
+  "INDEX",
+  "idx_purchase_invoice_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "purchase_return_line",
+  "PK",
+  "pk_purchase_return_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "purchase_return_line",
+  "INDEX",
+  "idx_purchase_return_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "stock_ledger_entry",
+  "PK",
+  "pk_stock_ledger_entry",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "stock_ledger_entry",
+  "INDEX",
+  "idx_stock_ledger_entry_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "stock_adjustment",
+  "PK",
+  "pk_stock_adjustment",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "stock_adjustment",
+  "INDEX",
+  "idx_stock_adjustment_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "payment",
+  "PK",
+  "pk_payment",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "payment",
+  "INDEX",
+  "idx_payment_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "payment_allocation",
+  "PK",
+  "pk_payment_allocation",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "payment_allocation",
+  "INDEX",
+  "idx_payment_allocation_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "payment_reversal",
+  "PK",
+  "pk_payment_reversal",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "payment_reversal",
+  "INDEX",
+  "idx_payment_reversal_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "chart_of_account",
+  "PK",
+  "pk_chart_of_account",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "chart_of_account",
+  "INDEX",
+  "idx_chart_of_account_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "journal_entry",
+  "PK",
+  "pk_journal_entry",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "journal_entry",
+  "INDEX",
+  "idx_journal_entry_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "journal_line",
+  "PK",
+  "pk_journal_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "journal_line",
+  "INDEX",
+  "idx_journal_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "bank_transaction",
+  "PK",
+  "pk_bank_transaction",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "bank_transaction",
+  "INDEX",
+  "idx_bank_transaction_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "bank_reconciliation",
+  "PK",
+  "pk_bank_reconciliation",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "bank_reconciliation",
+  "INDEX",
+  "idx_bank_reconciliation_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "gst_transaction",
+  "PK",
+  "pk_gst_transaction",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "gst_transaction",
+  "INDEX",
+  "idx_gst_transaction_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "e_invoice",
+  "PK",
+  "pk_e_invoice",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "e_invoice",
+  "INDEX",
+  "idx_e_invoice_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "e_way_bill",
+  "PK",
+  "pk_e_way_bill",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "e_way_bill",
+  "INDEX",
+  "idx_e_way_bill_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "employee",
+  "PK",
+  "pk_employee",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "employee",
+  "INDEX",
+  "idx_employee_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "attendance",
+  "PK",
+  "pk_attendance",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "attendance",
+  "INDEX",
+  "idx_attendance_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "leave",
+  "PK",
+  "pk_leave",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "leave",
+  "INDEX",
+  "idx_leave_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "payroll_run",
+  "PK",
+  "pk_payroll_run",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "payroll_run",
+  "INDEX",
+  "idx_payroll_run_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "payroll_line",
+  "PK",
+  "pk_payroll_line",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "payroll_line",
+  "INDEX",
+  "idx_payroll_line_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "payslip",
+  "PK",
+  "pk_payslip",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "payslip",
+  "INDEX",
+  "idx_payslip_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "payment",
+  "CHECK",
+  "ck_payment_party",
+  "Exactly one of customer_id / supplier_id is populated"
+ ],
+ [
+  "payment_allocation",
+  "CHECK",
+  "ck_payment_allocation_party",
+  "Exactly one of sales_invoice_id / purchase_invoice_id is populated"
+ ],
+ [
+  "journal_line",
+  "CHECK",
+  "ck_journal_line_amounts",
+  "debit_amount >= 0; credit_amount >= 0; not both > 0"
+ ],
+ [
+  "sales_order",
+  "UNIQUE",
+  "uq_sales_order_source_estimate",
+  "One estimate converts at most once (conditional unique)"
+ ],
+ [
+  "sales_invoice",
+  "UNIQUE",
+  "uq_sales_invoice_source_dc",
+  "One delivery challan converts at most once (conditional unique)"
+ ],
+ [
+  "sales_invoice",
+  "UNIQUE",
+  "uq_sales_invoice_number",
+  "UNIQUE (tenant_id, invoice_number)"
+ ],
+ [
+  "product",
+  "UNIQUE",
+  "uq_product_sku",
+  "UNIQUE (tenant_id, sku)"
+ ],
+ [
+  "customer",
+  "UNIQUE",
+  "uq_customer_code",
+  "UNIQUE (tenant_id, customer_code)"
+ ],
+ [
+  "supplier",
+  "UNIQUE",
+  "uq_supplier_code",
+  "UNIQUE (tenant_id, supplier_code)"
+ ],
+ [
+  "chart_of_account",
+  "UNIQUE",
+  "uq_account_code",
+  "UNIQUE (tenant_id, account_code)"
+ ]
+]

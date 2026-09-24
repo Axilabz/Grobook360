@@ -1,0 +1,30 @@
+[
+ [
+  10,
+  "The MVP is a cloud-based, multi-tenant business operating platform for FMCG distributors, wholesalers and retail businesses in India. It combines billing, inventory, accounting, GST, basic payroll and reporting, with offline-first PWA capability for field operations."
+ ],
+ [
+  74,
+  "7. Apply stock movement where document type requires it."
+ ],
+ [
+  81,
+  "12. MODULE 4 — PRODUCT & INVENTORY"
+ ],
+ [
+  83,
+  "12.2 STOCK LEDGER"
+ ],
+ [
+  84,
+  "12.3 INVENTORY RULES"
+ ],
+ [
+  115,
+  "Reports are derived views over authoritative transaction, inventory and accounting data. The visualization dashboard remains an open scope decision; basic reports remain in M1."
+ ],
+ [
+  174,
+  "APPENDIX A — CORE SCREEN INVENTORY"
+ ]
+]

@@ -1,0 +1,5 @@
+{
+  "name": "Saas App Full Front End",
+  "description": "A responsive Sign In and Sign Up flow replicating the Saas App design with floating labels, validation, and multi-step registration.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,44 @@
+[
+ [
+  "unit_of_measure",
+  "PK",
+  "pk_unit_of_measure",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "unit_of_measure",
+  "INDEX",
+  "idx_unit_of_measure_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "product",
+  "PK",
+  "pk_product",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "product",
+  "INDEX",
+  "idx_product_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "product_unit_conversion",
+  "PK",
+  "pk_product_unit_conversion",
+  "PRIMARY KEY (id)"
+ ],
+ [
+  "product_unit_conversion",
+  "INDEX",
+  "idx_product_unit_conversion_tenant",
+  "INDEX (tenant_id)"
+ ],
+ [
+  "product",
+  "UNIQUE",
+  "uq_product_sku",
+  "UNIQUE (tenant_id, sku)"
+ ]
+]

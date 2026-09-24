@@ -1,0 +1,320 @@
+{
+ "table7": [
+  [
+   "MODULE",
+   "OWNER",
+   "MANAGER",
+   "SALESPERSON",
+   "PLATFORM ADMIN"
+  ],
+  [
+   "Dashboard",
+   "Full",
+   "Full",
+   "Own / Scoped",
+   "Not applicable"
+  ],
+  [
+   "Users & Roles",
+   "Full",
+   "Limited",
+   "No",
+   "Platform users only"
+  ],
+  [
+   "Customers",
+   "Full",
+   "Full",
+   "Limited",
+   "No"
+  ],
+  [
+   "Suppliers",
+   "Full",
+   "Full",
+   "Limited",
+   "No"
+  ],
+  [
+   "Products",
+   "Full",
+   "Full",
+   "View",
+   "No"
+  ],
+  [
+   "Inventory",
+   "Full",
+   "Full",
+   "Limited / sales-based",
+   "No"
+  ],
+  [
+   "Sales & Billing",
+   "Full",
+   "Full",
+   "Own / permitted",
+   "No"
+  ],
+  [
+   "Purchase",
+   "Full",
+   "Full",
+   "No create",
+   "No"
+  ],
+  [
+   "Payments",
+   "Full",
+   "Full",
+   "Limited",
+   "No"
+  ],
+  [
+   "Accounting",
+   "Full",
+   "Limited",
+   "No",
+   "No"
+  ],
+  [
+   "GST",
+   "Full",
+   "Permitted",
+   "No",
+   "No"
+  ],
+  [
+   "Payroll",
+   "Full",
+   "Limited / own view",
+   "Own payslip where applicable",
+   "No"
+  ],
+  [
+   "Reports",
+   "Full",
+   "Full",
+   "Own / permitted",
+   "Platform"
+  ],
+  [
+   "Tenant Administration",
+   "No",
+   "No",
+   "No",
+   "Full"
+  ],
+  [
+   "Support Access",
+   "No",
+   "No",
+   "No",
+   "Full with approved consent controls"
+  ]
+ ],
+ "table23": [
+  [
+   "ID",
+   "REQUIREMENT",
+   "PRIORITY",
+   "SOURCE / CLASSIFICATION"
+  ],
+  [
+   "FR-CUST-01",
+   "Create/edit Customer with business name, owner name, phone, optional email, region/beat, address, city, state, pin code, GPS location, optional GSTIN, payment terms and credit limit.",
+   "Must",
+   "Confirmed / legacy FRD"
+  ],
+  [
+   "FR-CUST-02",
+   "Provide Use Current Location action using browser geolocation where permission is granted.",
+   "Must",
+   "Legacy prototype-derived requirement"
+  ],
+  [
+   "FR-CUST-03",
+   "Treat blank GSTIN as non-GST/unregistered party for billing/GST reporting.",
+   "Must",
+   "Confirmed"
+  ],
+  [
+   "FR-CUST-04",
+   "Use customer state with tenant state for applicable GST split logic.",
+   "Must",
+   "Confirmed"
+  ],
+  [
+   "FR-CUST-05",
+   "List customer summary with name, owner, phone, region, GSTIN, balance and status.",
+   "Must",
+   "Confirmed"
+  ],
+  [
+   "FR-CUST-06",
+   "Flag balance over credit limit when credit limit > 0.",
+   "Should",
+   "Confirmed; blocking decision open"
+  ],
+  [
+   "FR-CUST-07",
+   "Owner, Manager and Salesperson may create/edit; Owner/Manager may deactivate.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ "table3": [
+  [
+   "ACTOR",
+   "GOAL",
+   "PRIMARY FUNCTIONAL SCOPE"
+  ],
+  [
+   "Company Owner / Tenant Admin",
+   "Run the business with financial visibility",
+   "Users, customers/suppliers, products, sales, purchase, inventory, payments, accounting, GST, payroll, reports"
+  ],
+  [
+   "Manager",
+   "Control day-to-day operations without Owner-level access",
+   "Customers/suppliers, products/inventory, sales/purchase, collections, permitted accounting/GST/reporting, operational oversight"
+  ],
+  [
+   "Salesperson",
+   "Bill and collect in the field despite weak connectivity",
+   "Customer lookup/quick-add, product lookup, sales, returns/collections within entitlement, offline sync"
+  ],
+  [
+   "Platform Administrator",
+   "Operate and support the SaaS platform",
+   "Tenant provisioning/status, platform health, controlled support/troubleshooting, platform audit"
+  ]
+ ],
+ "table58": [
+  [
+   "MODULE",
+   "SCREEN / VIEW",
+   "PRIMARY ROLES"
+  ],
+  [
+   "Authentication",
+   "Sign In",
+   "All"
+  ],
+  [
+   "Authentication",
+   "Sign Up – Organization Details",
+   "Visitor"
+  ],
+  [
+   "Authentication",
+   "Sign Up – Login Details",
+   "Visitor"
+  ],
+  [
+   "Dashboard",
+   "Owner/Manager Dashboard",
+   "Owner, Manager"
+  ],
+  [
+   "Dashboard",
+   "My Dashboard",
+   "Salesperson"
+  ],
+  [
+   "Billing",
+   "Estimates List/Create/Detail",
+   "Owner, Manager, Salesperson per entitlement"
+  ],
+  [
+   "Billing",
+   "Sales Orders List/Create/Detail",
+   "Owner, Manager, Salesperson per entitlement"
+  ],
+  [
+   "Billing",
+   "Delivery Challans List/Create/Detail",
+   "Owner, Manager, Salesperson per entitlement"
+  ],
+  [
+   "Billing",
+   "Sales Invoices List/Create/Detail",
+   "Owner, Manager, Salesperson per entitlement"
+  ],
+  [
+   "Billing",
+   "Credit/Debit Notes / Returns",
+   "Owner, Manager, Salesperson per entitlement"
+  ],
+  [
+   "Purchase",
+   "Purchase Orders / Goods Receipt / Purchase Invoice",
+   "Owner, Manager"
+  ],
+  [
+   "Payments",
+   "Receipts / Payments / Allocation",
+   "Owner, Manager, permitted Salesperson"
+  ],
+  [
+   "Inventory",
+   "Products",
+   "Owner, Manager; Salesperson view"
+  ],
+  [
+   "Inventory",
+   "Stock Ledger / Movement",
+   "Owner, Manager; limited Salesperson"
+  ],
+  [
+   "Master Data",
+   "Customers",
+   "Owner, Manager, Salesperson"
+  ],
+  [
+   "Master Data",
+   "Suppliers",
+   "Owner, Manager, Salesperson"
+  ],
+  [
+   "Accounting",
+   "COA / Journals / Ledger",
+   "Owner, Manager permitted"
+  ],
+  [
+   "Accounting",
+   "Trial Balance / P&L / Balance Sheet / Reconciliation",
+   "Owner, Manager permitted"
+  ],
+  [
+   "GST",
+   "GSTR-1 / GSTR-3B / Tax Split / HSN",
+   "Owner, Manager permitted"
+  ],
+  [
+   "Payroll",
+   "Employee / Attendance / Leave / Payroll Run / Payslip",
+   "Owner; employee self-view where applicable"
+  ],
+  [
+   "Users",
+   "Users / Roles / Permissions",
+   "Owner, Manager permitted"
+  ],
+  [
+   "Reports",
+   "Sales / Purchase / Stock / Financial",
+   "Owner, Manager; Salesperson scoped"
+  ],
+  [
+   "Platform",
+   "Tenant Console / Health / Support / Audit",
+   "Platform Administrator"
+  ],
+  [
+   "PWA",
+   "Offline Queue / Sync Status",
+   "All applicable roles; write scope constrained"
+  ]
+ ]
+}

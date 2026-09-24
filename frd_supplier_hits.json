@@ -1,0 +1,211 @@
+[
+ [
+  2,
+  1,
+  [
+   "Core operation",
+   "Customer/Supplier → Product → Sale/Purchase → Stock → Payment → Accounting"
+  ]
+ ],
+ [
+  3,
+  1,
+  [
+   "Company Owner / Tenant Admin",
+   "Run the business with financial visibility",
+   "Users, customers/suppliers, products, sales, purchase, inventory, payments, accounting, GST, payroll, reports"
+  ]
+ ],
+ [
+  3,
+  2,
+  [
+   "Manager",
+   "Control day-to-day operations without Owner-level access",
+   "Customers/suppliers, products/inventory, sales/purchase, collections, permitted accounting/GST/reporting, operational oversight"
+  ]
+ ],
+ [
+  4,
+  2,
+  [
+   "Customer & Supplier Management",
+   "IN",
+   "Create/edit/view/deactivate, GSTIN, address/contact, commercial terms"
+  ]
+ ],
+ [
+  7,
+  4,
+  [
+   "Suppliers",
+   "Full",
+   "Full",
+   "Limited",
+   "No"
+  ]
+ ],
+ [
+  19,
+  1,
+  [
+   "FR-PO-01",
+   "Create Purchase Order and preserve supplier/line-item details.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  19,
+  4,
+  [
+   "FR-PINV-01",
+   "Create Purchase Invoice against Supplier with supplier invoice number.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  19,
+  5,
+  [
+   "FR-PINV-02",
+   "Increase supplier payable balance by applicable invoice total.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  19,
+  7,
+  [
+   "FR-PINV-04",
+   "Tenant does not generate supplier-side IRN/e-way bill for Purchase Invoice.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  24,
+  1,
+  [
+   "FR-SUPP-01",
+   "Create/edit Supplier with company name, owner/contact, phone, optional email, address, city, state, pin code, optional GSTIN and payment terms.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  24,
+  2,
+  [
+   "FR-SUPP-02",
+   "Do not capture Customer-only Region/Beat, GPS or Credit Limit fields for Supplier.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  24,
+  3,
+  [
+   "FR-SUPP-03",
+   "Use supplier state for Purchase Invoice GST split logic.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  24,
+  4,
+  [
+   "FR-SUPP-04",
+   "List supplier name, owner/contact, phone, city, GSTIN, balance and status.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  24,
+  5,
+  [
+   "FR-SUPP-05",
+   "Owner, Manager and Salesperson may create/edit suppliers; deactivation is Owner/Manager controlled.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  25,
+  2,
+  [
+   "BRULE-CUST-02",
+   "Deactivated customers/suppliers cannot be used for new transactions; historical documents remain available."
+  ]
+ ],
+ [
+  29,
+  5,
+  [
+   "Supplier Payment",
+   "Cash/Bank decreases; payable decreases."
+  ]
+ ],
+ [
+  38,
+  2,
+  [
+   "Purchase Report",
+   "Purchase invoices, supplier, value, status",
+   "Owner/Manager"
+  ]
+ ],
+ [
+  41,
+  3,
+  [
+   "Customer/Supplier Quick Add",
+   "Minimal create offline"
+  ]
+ ],
+ [
+  52,
+  3,
+  [
+   "BR-CORE-03",
+   "HLR-03",
+   "FR-CUST-01..07 / FR-SUPP-01..05",
+   "Counterparty",
+   "Customer/Supplier",
+   "Counterparty rules",
+   "UAT-MASTER-001.."
+  ]
+ ],
+ [
+  53,
+  5,
+  [
+   "Customers/Suppliers",
+   "Covered",
+   "GPS/customer-only fields retained where supported by prior prototype requirements."
+  ]
+ ],
+ [
+  55,
+  2,
+  [
+   "Customer/Supplier",
+   "Covered",
+   "13"
+  ]
+ ],
+ [
+  58,
+  16,
+  [
+   "Master Data",
+   "Suppliers",
+   "Owner, Manager, Salesperson"
+  ]
+ ]
+]

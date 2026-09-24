@@ -1,0 +1,502 @@
+[
+ [
+  2,
+  1,
+  [
+   "Core operation",
+   "Customer/Supplier → Product → Sale/Purchase → Stock → Payment → Accounting"
+  ]
+ ],
+ [
+  3,
+  1,
+  [
+   "Company Owner / Tenant Admin",
+   "Run the business with financial visibility",
+   "Users, customers/suppliers, products, sales, purchase, inventory, payments, accounting, GST, payroll, reports"
+  ]
+ ],
+ [
+  3,
+  2,
+  [
+   "Manager",
+   "Control day-to-day operations without Owner-level access",
+   "Customers/suppliers, products/inventory, sales/purchase, collections, permitted accounting/GST/reporting, operational oversight"
+  ]
+ ],
+ [
+  4,
+  3,
+  [
+   "Product & Inventory",
+   "IN",
+   "Product CRUD, pricing, UOM, stock in/out/transfer, reorder alerts, stock ledger"
+  ]
+ ],
+ [
+  4,
+  10,
+  [
+   "Basic Reports",
+   "IN",
+   "Sales, purchase, stock and financial reports"
+  ]
+ ],
+ [
+  7,
+  6,
+  [
+   "Inventory",
+   "Full",
+   "Full",
+   "Limited / sales-based",
+   "No"
+  ]
+ ],
+ [
+  11,
+  1,
+  [
+   "FR-DASH-01",
+   "Display Total Billed Value, Pending Sync count, Low Stock Items count and Outstanding Receivables.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  11,
+  3,
+  [
+   "FR-DASH-03",
+   "Hide/lock tenant-wide Low Stock and Outstanding Receivables from Salesperson rather than showing zero.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  11,
+  5,
+  [
+   "FR-DASH-05",
+   "Display low-stock products for entitled roles using current stock versus reorder level.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  12,
+  1,
+  [
+   "BRULE-DASH-01",
+   "Low Stock = current stock ≤ reorder level, evaluated at read time."
+  ]
+ ],
+ [
+  15,
+  2,
+  [
+   "FR-SO-02",
+   "Do not reduce stock on Sales Order creation.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  17,
+  5,
+  [
+   "FR-INV-05",
+   "Create stock-out event for direct invoice.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  17,
+  6,
+  [
+   "FR-INV-06",
+   "Do not create a second stock-out when invoicing a Delivery Challan already accounted for.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  18,
+  4,
+  [
+   "FR-RET-01",
+   "Sales Return increases stock; Purchase Return decreases stock.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  19,
+  2,
+  [
+   "FR-PO-02",
+   "Do not increase stock on Purchase Order creation.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  19,
+  3,
+  [
+   "FR-GRN-01",
+   "Create Goods Receipt and increase stock for received quantities.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  19,
+  6,
+  [
+   "FR-PINV-03",
+   "Do not duplicate stock-in when a prior Goods Receipt already accounted for the relevant quantity.",
+   "Must",
+   "Confirmed; detailed matching rule required"
+  ]
+ ],
+ [
+  20,
+  1,
+  [
+   "FR-PROD-01",
+   "Create/edit Product with name, SKU, HSN, GST rate, Cost Price, Selling Price, MRP, UOM, opening stock and reorder level as applicable.",
+   "Must",
+   "PRD v3.0 + legacy FRD"
+  ]
+ ],
+ [
+  20,
+  3,
+  [
+   "FR-PROD-03",
+   "Show product list with operational pricing, stock and reorder status.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  21,
+  1,
+  [
+   "FR-STK-01",
+   "Record Stock In, Stock Out and permitted Transfer movements.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  21,
+  2,
+  [
+   "FR-STK-02",
+   "Update stock ledger atomically with the movement.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  21,
+  3,
+  [
+   "FR-STK-03",
+   "Display chronological ledger entries with date, product, movement type and quantity.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  21,
+  4,
+  [
+   "FR-STK-04",
+   "Owner/Manager may record manual stock movements; Salesperson may only cause stock movement through permitted sales workflows.",
+   "Must",
+   "Confirmed / entitlement dependent"
+  ]
+ ],
+ [
+  21,
+  5,
+  [
+   "FR-STK-05",
+   "Stock Ledger is authoritative; Product stock quantity is a cache/read optimization and must not be treated as source of truth.",
+   "Must",
+   "Confirmed"
+  ]
+ ],
+ [
+  22,
+  1,
+  [
+   "BRULE-INV-01",
+   "Sales Order does not change stock."
+  ]
+ ],
+ [
+  22,
+  2,
+  [
+   "BRULE-INV-02",
+   "Delivery Challan creates stock-out."
+  ]
+ ],
+ [
+  22,
+  3,
+  [
+   "BRULE-INV-03",
+   "Direct Sales Invoice creates stock-out."
+  ]
+ ],
+ [
+  22,
+  4,
+  [
+   "BRULE-INV-04",
+   "Invoicing an already-accounted Delivery Challan does not create a second stock-out."
+  ]
+ ],
+ [
+  22,
+  5,
+  [
+   "BRULE-INV-05",
+   "Goods Receipt creates stock-in."
+  ]
+ ],
+ [
+  22,
+  6,
+  [
+   "BRULE-INV-06",
+   "Sales Return creates stock-in; Purchase Return creates stock-out."
+  ]
+ ],
+ [
+  22,
+  7,
+  [
+   "BRULE-INV-07",
+   "Stock Ledger is source of truth; cached stock must be reconcilable."
+  ]
+ ],
+ [
+  23,
+  1,
+  [
+   "FR-CUST-01",
+   "Create/edit Customer with business name, owner name, phone, optional email, region/beat, address, city, state, pin code, GPS location, optional GSTIN, payment terms and credit limit.",
+   "Must",
+   "Confirmed / legacy FRD"
+  ]
+ ],
+ [
+  23,
+  2,
+  [
+   "FR-CUST-02",
+   "Provide Use Current Location action using browser geolocation where permission is granted.",
+   "Must",
+   "Legacy prototype-derived requirement"
+  ]
+ ],
+ [
+  29,
+  3,
+  [
+   "Purchase Invoice",
+   "Inventory/expense + input tax/creditor effects per approved posting matrix."
+  ]
+ ],
+ [
+  38,
+  3,
+  [
+   "Stock Report",
+   "Product, current stock, movement/reorder information",
+   "Owner/Manager; limited Salesperson"
+  ]
+ ],
+ [
+  41,
+  2,
+  [
+   "Stock Movements",
+   "Create + read offline; sync when connected"
+  ]
+ ],
+ [
+  44,
+  7,
+  [
+   "BR-007",
+   "Sales Order does not reduce stock."
+  ]
+ ],
+ [
+  44,
+  8,
+  [
+   "BR-008",
+   "Delivery Challan reduces stock; invoicing that challan does not reduce stock again."
+  ]
+ ],
+ [
+  44,
+  9,
+  [
+   "BR-009",
+   "Direct Sales Invoice reduces stock."
+  ]
+ ],
+ [
+  44,
+  10,
+  [
+   "BR-010",
+   "Sales Return increases stock; Purchase Return decreases stock."
+  ]
+ ],
+ [
+  44,
+  11,
+  [
+   "BR-011",
+   "Purchase Order does not increase stock; Goods Receipt increases stock."
+  ]
+ ],
+ [
+  44,
+  15,
+  [
+   "BR-015",
+   "Stock Ledger is the source of truth; stock cache is not authoritative."
+  ]
+ ],
+ [
+  49,
+  4,
+  [
+   "ASM-004",
+   "Product stock quantity is a cache over Stock Ledger.",
+   "Requires reconciliation capability."
+  ]
+ ],
+ [
+  50,
+  4,
+  [
+   "DEP-004",
+   "Approved Offline Sync & Idempotency Specification",
+   "Salesperson offline flow, stock, invoice sync"
+  ]
+ ],
+ [
+  51,
+  7,
+  [
+   "OQ-007",
+   "Inventory",
+   "Is batch/expiry in M1? If yes, define exact behavior/validation.",
+   "Inventory/UI/DB",
+   "Open"
+  ]
+ ],
+ [
+  51,
+  8,
+  [
+   "OQ-008",
+   "Inventory",
+   "Confirm negative-stock behavior and whether stock-out is hard-blocked.",
+   "Inventory transaction control",
+   "Open"
+  ]
+ ],
+ [
+  51,
+  10,
+  [
+   "OQ-010",
+   "Payments",
+   "Are payments invoice-linked only or can on-account payments exist?",
+   "Payment allocation/data model",
+   "Open"
+  ]
+ ],
+ [
+  52,
+  2,
+  [
+   "BR-CORE-02",
+   "HLR-02",
+   "FR-STK-01..05",
+   "Inventory",
+   "Stock Ledger",
+   "BR-007..011, BR-015",
+   "UAT-STK-001.."
+  ]
+ ],
+ [
+  53,
+  4,
+  [
+   "Inventory",
+   "Covered",
+   "Prototype did not automatically move stock from all billing/purchase events; PRD v3.0 is authoritative."
+  ]
+ ],
+ [
+  55,
+  3,
+  [
+   "Product/Inventory",
+   "Covered",
+   "12"
+  ]
+ ],
+ [
+  58,
+  12,
+  [
+   "Payments",
+   "Receipts / Payments / Allocation",
+   "Owner, Manager, permitted Salesperson"
+  ]
+ ],
+ [
+  58,
+  13,
+  [
+   "Inventory",
+   "Products",
+   "Owner, Manager; Salesperson view"
+  ]
+ ],
+ [
+  58,
+  14,
+  [
+   "Inventory",
+   "Stock Ledger / Movement",
+   "Owner, Manager; limited Salesperson"
+  ]
+ ],
+ [
+  58,
+  22,
+  [
+   "Reports",
+   "Sales / Purchase / Stock / Financial",
+   "Owner, Manager; Salesperson scoped"
+  ]
+ ]
+]

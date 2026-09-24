@@ -1,0 +1,4 @@
+('sales_return', 'PK', 'pk_sales_return', 'PRIMARY KEY (id)')
+('sales_return', 'INDEX', 'idx_sales_return_tenant', 'INDEX (tenant_id)')
+('sales_return_line', 'PK', 'pk_sales_return_line', 'PRIMARY KEY (id)')
+('sales_return_line', 'INDEX', 'idx_sales_return_line_tenant', 'INDEX (tenant_id)')

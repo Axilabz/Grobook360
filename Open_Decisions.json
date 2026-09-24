@@ -1,0 +1,42 @@
+[
+ [
+  "ID",
+  "ITEM",
+  "STATUS / REQUIRED DECISION"
+ ],
+ [
+  "ERD-DEC-01",
+  "Batch / expiry",
+  "Schema fields reserved; exact mandatory behavior, FEFO and expired-stock blocking remain open in source requirements."
+ ],
+ [
+  "ERD-DEC-02",
+  "User phone uniqueness",
+  "Platform-wide vs per-tenant uniqueness remains open in source ERD."
+ ],
+ [
+  "ERD-DEC-03",
+  "Payment on-account",
+  "Confirm whether on-account payments are allowed or all payments must be invoice-linked."
+ ],
+ [
+  "ERD-DEC-04",
+  "BankAccount master",
+  "Required by bank transaction/reconciliation; detailed entity not fully specified in current ERD."
+ ],
+ [
+  "ERD-DEC-05",
+  "GST rate master",
+  "Product.gst_rate is baseline; versioned/configurable GST master should be finalized in GST Rule Matrix."
+ ],
+ [
+  "ERD-DEC-06",
+  "SalaryStructure",
+  "Detailed salary-component entity required before payroll implementation."
+ ],
+ [
+  "ERD-DEC-07",
+  "Offline invoice numbering",
+  "Final GST document number must remain server-authoritative; temporary offline reference belongs to Offline Sync specification."
+ ]
+]

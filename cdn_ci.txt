@@ -1,0 +1,4 @@
+('credit_debit_note', 'PK', 'pk_credit_debit_note', 'PRIMARY KEY (id)')
+('credit_debit_note', 'INDEX', 'idx_credit_debit_note_tenant', 'INDEX (tenant_id)')
+('credit_debit_note_line', 'PK', 'pk_credit_debit_note_line', 'PRIMARY KEY (id)')
+('credit_debit_note_line', 'INDEX', 'idx_credit_debit_note_line_tenant', 'INDEX (tenant_id)')
