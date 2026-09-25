@@ -7,6 +7,7 @@ import Input from './Input';
 import Select from './Select';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import MobileAccordionCard from '../shared/MobileAccordionCard';
 import { ApiError } from '../api/client';
 import {
   InventoryItem,
@@ -197,18 +198,16 @@ const InventoryManagement: React.FC = () => {
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {items.map((item) => (
-              <div key={item.product_id} className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <button onClick={() => setHistoryItem(item)} className="font-semibold text-gray-900 dark:text-white text-[15px] hover:text-[#0066ff] text-left">
-                      {item.name}
-                    </button>
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">{item.sku} · {item.base_uom.code}</p>
-                  </div>
+              <MobileAccordionCard
+                key={item.product_id}
+                title={item.name}
+                subtitle={`${item.sku} · ${item.base_uom.code}`}
+                badge={
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[item.product_status]}`}>
                     {item.product_status}
                   </span>
-                </div>
+                }
+              >
                 <p className="text-[13px] text-gray-600 dark:text-gray-300 mb-3 flex items-center gap-1.5">
                   Stock: <span className="font-medium">{item.current_stock} {item.base_uom.code}</span>
                   {item.is_low_stock && <AlertTriangle size={12} className="text-amber-500" />}
@@ -240,7 +239,7 @@ const InventoryManagement: React.FC = () => {
                     )}
                   </div>
                 )}
-              </div>
+              </MobileAccordionCard>
             ))}
           </div>
 

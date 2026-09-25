@@ -8,6 +8,7 @@ import Select from './Select';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import ExportButton from '../shared/ExportButton';
+import MobileAccordionCard from '../shared/MobileAccordionCard';
 import { ApiError, ConcurrencyConflictError } from '../api/client';
 import {
   Supplier,
@@ -238,18 +239,16 @@ const SupplierManagement: React.FC = () => {
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {suppliers.map((supplier) => (
-              <div key={supplier.id} className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <button onClick={() => setViewingSupplier(supplier)} className="font-semibold text-gray-900 dark:text-white text-[15px] hover:text-[#0066ff] text-left">
-                      {supplier.name}
-                    </button>
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">{supplier.supplier_code} · {supplier.phone || '—'}</p>
-                  </div>
+              <MobileAccordionCard
+                key={supplier.id}
+                title={supplier.name}
+                subtitle={`${supplier.supplier_code} · ${supplier.phone || '—'}`}
+                badge={
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[supplier.status]}`}>
                     {supplier.status}
                   </span>
-                </div>
+                }
+              >
                 <p className="text-[13px] text-gray-600 dark:text-gray-300 mb-3">
                   GSTIN: <span className="font-medium">{supplier.gstin || 'Unregistered'}</span> · Balance: <span className="font-medium">₹{supplier.balance}</span>
                 </p>
@@ -274,7 +273,7 @@ const SupplierManagement: React.FC = () => {
                         </button>
                       )}
                 </div>
-              </div>
+              </MobileAccordionCard>
             ))}
           </div>
 

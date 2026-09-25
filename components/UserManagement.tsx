@@ -4,6 +4,7 @@ import Input from './Input';
 import Select from './Select';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import MobileAccordionCard from '../shared/MobileAccordionCard';
 import { ApiError, ConcurrencyConflictError } from '../api/client';
 import {
   TenantUser,
@@ -219,16 +220,16 @@ const UserManagement: React.FC = () => {
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {users.map((user) => (
-              <div key={user.id} className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="font-semibold text-gray-900 dark:text-white text-[15px]">{user.name || 'Not set'}</p>
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">{user.phone}</p>
-                  </div>
+              <MobileAccordionCard
+                key={user.id}
+                title={user.name || 'Not set'}
+                subtitle={user.phone}
+                badge={
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[user.status]}`}>
                     {user.status}
                   </span>
-                </div>
+                }
+              >
                 <p className="text-[13px] text-gray-600 dark:text-gray-300 mb-3">Role: <span className="font-medium">{user.role}</span></p>
                 {(canEdit || canActivate || canDeactivate) && (
                   <div className="flex gap-2">
@@ -259,7 +260,7 @@ const UserManagement: React.FC = () => {
                         )}
                   </div>
                 )}
-              </div>
+              </MobileAccordionCard>
             ))}
           </div>
 

@@ -19,6 +19,7 @@ import {
 } from '../api/customers';
 import { GST_STATE_CODES, stateNameForCode, stateCodeForName } from '../shared/gstStateCodes';
 import ExportButton from '../shared/ExportButton';
+import MobileAccordionCard from '../shared/MobileAccordionCard';
 
 const STATUS_BADGE: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -241,18 +242,16 @@ const CustomerManagement: React.FC = () => {
           {/* Mobile cards */}
           <div className="md:hidden space-y-3">
             {customers.map((customer) => (
-              <div key={customer.id} className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <button onClick={() => setViewingCustomer(customer)} className="font-semibold text-gray-900 dark:text-white text-[15px] hover:text-[#0066ff] text-left">
-                      {customer.name}
-                    </button>
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">{customer.customer_code} · {customer.phone || '—'}</p>
-                  </div>
+              <MobileAccordionCard
+                key={customer.id}
+                title={customer.name}
+                subtitle={`${customer.customer_code} · ${customer.phone || '—'}`}
+                badge={
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[customer.status]}`}>
                     {customer.status}
                   </span>
-                </div>
+                }
+              >
                 <p className="text-[13px] text-gray-600 dark:text-gray-300 mb-3">
                   GSTIN: <span className="font-medium">{customer.gstin || 'Unregistered'}</span> · Balance: <span className="font-medium">₹{customer.balance}</span>
                   {customer.is_over_credit_limit && <AlertTriangle size={12} className="inline ml-1 text-amber-500" />}
@@ -278,7 +277,7 @@ const CustomerManagement: React.FC = () => {
                         </button>
                       )}
                 </div>
-              </div>
+              </MobileAccordionCard>
             ))}
           </div>
 

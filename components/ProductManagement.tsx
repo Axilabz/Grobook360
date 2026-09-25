@@ -25,6 +25,7 @@ import {
   createUnitConversion,
 } from '../api/products';
 import { UnitOfMeasure, listUnits, createUnit } from '../api/units';
+import MobileAccordionCard from '../shared/MobileAccordionCard';
 
 // Standard GST slabs — deliberately a closed, static set (not free-text),
 // since GST rates are a fixed, government-defined list, not an open field.
@@ -254,21 +255,19 @@ const ProductManagement: React.FC = () => {
             </div>
           </div>
 
-          {/* Mobile cards */}
+          {/* Mobile cards (accordion — collapsed to header until tapped) */}
           <div className="md:hidden space-y-3">
             {products.map((product) => (
-              <div key={product.id} className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <button onClick={() => setViewingProduct(product)} className="font-semibold text-gray-900 dark:text-white text-[15px] hover:text-[#0066ff] text-left">
-                      {product.name}
-                    </button>
-                    <p className="text-[13px] text-gray-500 dark:text-gray-400">{product.sku} · {product.base_uom.code}</p>
-                  </div>
+              <MobileAccordionCard
+                key={product.id}
+                title={product.name}
+                subtitle={`${product.sku} · ${product.base_uom.code}`}
+                badge={
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[product.status]}`}>
                     {product.status}
                   </span>
-                </div>
+                }
+              >
                 <p className="text-[13px] text-gray-600 dark:text-gray-300 mb-3">
                   Selling: <span className="font-medium">₹{product.selling_price}</span> · MRP: <span className="font-medium">₹{product.mrp}</span>
                 </p>
@@ -293,7 +292,7 @@ const ProductManagement: React.FC = () => {
                         </button>
                       )}
                 </div>
-              </div>
+              </MobileAccordionCard>
             ))}
           </div>
 
