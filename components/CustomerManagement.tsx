@@ -7,6 +7,7 @@ import Input from './Input';
 import Select from './Select';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import MobileFilterToggle from '../shared/MobileFilterToggle';
 import { ApiError, ConcurrencyConflictError } from '../api/client';
 import {
   Customer,
@@ -42,6 +43,7 @@ const CustomerManagement: React.FC = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [gstFilter, setGstFilter] = useState(''); // '', 'registered', 'unregistered'
   const [isLoading, setIsLoading] = useState(true);
 
@@ -109,11 +111,12 @@ const CustomerManagement: React.FC = () => {
   return (
     <div className="max-w-[98%] mx-auto p-4 md:p-6 animate-fade-in">
       <div className="sticky top-16 z-[55] bg-white dark:bg-gray-950 -mx-4 md:-mx-6 px-4 md:px-6 py-4 -mt-4 md:-mt-6 mb-6 border-b border-gray-100 dark:border-gray-800 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 shadow-sm">
-        <h2 className="text-[22px] md:text-[26px] font-semibold text-gray-800 dark:text-gray-100 tracking-tight">
-          Customers
-        </h2>
+        <div className="flex items-center justify-between gap-3 md:block">
+          <h2 className="text-[22px] md:text-[26px] font-semibold text-gray-800 dark:text-gray-100 tracking-tight">Customers</h2>
+          <MobileFilterToggle open={showMobileFilters} onClick={() => setShowMobileFilters((v) => !v)} />
+        </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex flex-col sm:flex-row gap-3 w-full md:w-auto`}>
           <div className="relative w-full sm:w-64">
             <input
               type="text"

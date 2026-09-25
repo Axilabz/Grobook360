@@ -26,6 +26,7 @@ import {
 } from '../api/products';
 import { UnitOfMeasure, listUnits, createUnit } from '../api/units';
 import MobileAccordionCard from '../shared/MobileAccordionCard';
+import MobileFilterToggle from '../shared/MobileFilterToggle';
 
 // Standard GST slabs — deliberately a closed, static set (not free-text),
 // since GST rates are a fixed, government-defined list, not an open field.
@@ -70,6 +71,7 @@ const ProductManagement: React.FC = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -134,11 +136,14 @@ const ProductManagement: React.FC = () => {
   return (
     <div className="max-w-[98%] mx-auto p-4 md:p-6 animate-fade-in">
       <div className="sticky top-16 z-[55] bg-white dark:bg-gray-950 -mx-4 md:-mx-6 px-4 md:px-6 py-4 -mt-4 md:-mt-6 mb-6 border-b border-gray-100 dark:border-gray-800 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 shadow-sm">
-        <h2 className="text-[22px] md:text-[26px] font-semibold text-gray-800 dark:text-gray-100 tracking-tight">
-          Products
-        </h2>
+        <div className="flex items-center justify-between gap-3 md:block">
+          <h2 className="text-[22px] md:text-[26px] font-semibold text-gray-800 dark:text-gray-100 tracking-tight">
+            Products
+          </h2>
+          <MobileFilterToggle open={showMobileFilters} onClick={() => setShowMobileFilters((v) => !v)} />
+        </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <div className={`${showMobileFilters ? 'flex' : 'hidden'} md:flex flex-col sm:flex-row gap-3 w-full md:w-auto`}>
           <div className="relative w-full sm:w-64">
             <input
               type="text"
