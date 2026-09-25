@@ -285,17 +285,19 @@ const ConfigurationManagement: React.FC = () => {
             {/* Display options */}
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
               <h3 className="text-[15px] font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2"><Eye size={16} /> Invoice Display Options</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
                 {DISPLAY_TOGGLES.map((t) => (
-                  <label key={String(t.key)} className="flex items-center justify-between gap-2 py-1.5">
+                  <label key={String(t.key)} className="flex items-center justify-between gap-3 py-2">
                     <span className="text-[13px] text-gray-700 dark:text-gray-300">{t.label}</span>
                     <button
-                      type="button" disabled={!canManage}
+                      type="button" disabled={!canManage} aria-pressed={form[t.key]}
                       onClick={() => update(t.key, !form[t.key] as any)}
-                      className={`w-10 h-5.5 rounded-full transition-colors relative shrink-0 ${form[t.key] ? 'bg-[#0066ff]' : 'bg-gray-300 dark:bg-gray-600'}`}
-                      style={{ height: 22, width: 40 }}
+                      className={`shrink-0 inline-flex items-center w-11 h-6 rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${form[t.key] ? 'bg-[#0066ff]' : 'bg-gray-300 dark:bg-gray-600'}`}
                     >
-                      <span className={`absolute top-0.5 w-4.5 h-4.5 bg-white rounded-full transition-transform ${form[t.key] ? 'translate-x-[19px]' : 'translate-x-0.5'}`} style={{ width: 18, height: 18 }} />
+                      <span
+                        className="inline-block w-5 h-5 bg-white rounded-full shadow transform transition-transform duration-200"
+                        style={{ transform: form[t.key] ? 'translateX(22px)' : 'translateX(2px)' }}
+                      />
                     </button>
                   </label>
                 ))}
