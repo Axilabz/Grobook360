@@ -4,33 +4,33 @@ import { Info } from 'lucide-react';
 
 const Input: React.FC<InputProps> = ({ label, error, icon, onIconClick, infoContent, forceShowTooltip, className, labelClassName, ...props }) => {
   return (
-    <div className="relative mb-10 w-full">
+    <div className="relative mb-7 md:mb-10 w-full">
       <div className="relative">
         <input
           {...props}
           className={`
-            peer block w-full rounded-md border px-3 py-3 
+            peer block w-full rounded-md border px-2.5 py-2 md:px-3 md:py-3
             text-gray-900 dark:text-white
             bg-transparent
-            focus:outline-none focus:ring-0 
-            text-[15px] md:text-[16px] font-normal leading-[1.4] /* Input Text Typography */
+            focus:outline-none focus:ring-0
+            text-[13px] md:text-[16px] font-normal leading-[1.4] /* Input Text Typography */
             ${error ? 'border-red-500 focus:border-red-500' : 'border-blue-300 focus:border-blue-500 dark:border-gray-600 dark:focus:border-blue-400'}
             placeholder-transparent
             ${props.disabled ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed text-gray-500 dark:text-gray-400' : ''}
             ${className || ''}
           `}
-          placeholder={label} 
+          placeholder={label}
         />
         <label
           title={label}
           className={`
-            absolute left-3 z-10 px-1 transition-all duration-200 pointer-events-none
+            absolute left-2.5 md:left-3 z-10 px-1 transition-all duration-200 pointer-events-none
             whitespace-nowrap overflow-hidden text-ellipsis max-w-[calc(100%-1.5rem)]
             ${labelClassName || 'bg-white dark:bg-gray-800'}
-            -top-2.5
-            text-[12px] md:text-[14px] font-medium /* Label Typography (Floating) */
-            peer-placeholder-shown:top-3 peer-placeholder-shown:text-[15px] peer-placeholder-shown:md:text-[16px] peer-placeholder-shown:font-normal peer-placeholder-shown:text-gray-500 dark:peer-placeholder-shown:text-gray-400
-            peer-focus:-top-2.5 peer-focus:text-[12px] peer-focus:md:text-[14px] peer-focus:font-medium
+            -top-2 md:-top-2.5
+            text-[10px] md:text-[14px] font-medium /* Label Typography (Floating) */
+            peer-placeholder-shown:top-2 peer-placeholder-shown:md:top-3 peer-placeholder-shown:text-[13px] peer-placeholder-shown:md:text-[16px] peer-placeholder-shown:font-normal peer-placeholder-shown:text-gray-500 dark:peer-placeholder-shown:text-gray-400
+            peer-focus:-top-2 peer-focus:md:-top-2.5 peer-focus:text-[10px] peer-focus:md:text-[14px] peer-focus:font-medium
             ${error ? 'text-red-500 peer-focus:text-red-500' : 'text-gray-500 dark:text-gray-400 peer-focus:text-blue-500 dark:peer-focus:text-blue-400'}
           `}
         >

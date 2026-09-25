@@ -73,7 +73,7 @@ const Select: React.FC<SelectProps> = ({ label, options, error, value, onChange,
   };
 
   return (
-    <div className="relative mb-10 w-full" ref={containerRef}>
+    <div className="relative mb-7 md:mb-10 w-full" ref={containerRef}>
       <div className="relative">
         <input
           ref={inputRef}
@@ -86,11 +86,11 @@ const Select: React.FC<SelectProps> = ({ label, options, error, value, onChange,
           }}
           onFocus={() => !disabled && setIsOpen(true)}
           className={`
-            peer block w-full rounded-md border px-3 py-3 pr-10 
+            peer block w-full rounded-md border px-2.5 py-2 pr-9 md:px-3 md:py-3 md:pr-10
             text-gray-900 dark:text-white
             bg-white dark:bg-transparent
-            focus:outline-none focus:ring-0 
-            text-[15px] md:text-[16px] font-normal leading-[1.4] /* Input Text */
+            focus:outline-none focus:ring-0
+            text-[13px] md:text-[16px] font-normal leading-[1.4] /* Input Text */
             ${error ? 'border-red-500 focus:border-red-500' : 'border-blue-300 focus:border-blue-500 dark:border-gray-600 dark:focus:border-blue-400'}
             placeholder-transparent
             ${className || ''}
@@ -99,35 +99,35 @@ const Select: React.FC<SelectProps> = ({ label, options, error, value, onChange,
           placeholder={label}
           autoComplete="off"
         />
-        
+
         {/* Floating Label */}
         <label
           className={`
-            absolute left-3 z-10 px-1 transition-all duration-200 pointer-events-none
+            absolute left-2.5 md:left-3 z-10 px-1 transition-all duration-200 pointer-events-none
             ${labelClassName || 'bg-white dark:bg-gray-800'}
-            -top-2.5 
-            text-[12px] md:text-[14px] font-medium /* Label Typography */
-            peer-placeholder-shown:top-3 peer-placeholder-shown:text-[15px] peer-placeholder-shown:md:text-[16px] peer-placeholder-shown:font-normal peer-placeholder-shown:text-gray-500 dark:peer-placeholder-shown:text-gray-400
-            peer-focus:-top-2.5 peer-focus:text-[12px] peer-focus:md:text-[14px] peer-focus:font-medium
+            -top-2 md:-top-2.5
+            text-[10px] md:text-[14px] font-medium /* Label Typography */
+            peer-placeholder-shown:top-2 peer-placeholder-shown:md:top-3 peer-placeholder-shown:text-[13px] peer-placeholder-shown:md:text-[16px] peer-placeholder-shown:font-normal peer-placeholder-shown:text-gray-500 dark:peer-placeholder-shown:text-gray-400
+            peer-focus:-top-2 peer-focus:md:-top-2.5 peer-focus:text-[10px] peer-focus:md:text-[14px] peer-focus:font-medium
             ${error ? 'text-red-500 peer-focus:text-red-500' : 'text-gray-500 dark:text-gray-400 peer-focus:text-blue-500 dark:peer-focus:text-blue-400'}
           `}
         >
           {label}
         </label>
-        
+
         {/* Toggle Icon */}
-        <div 
-          className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
-          onMouseDown={(e) => e.preventDefault()} 
+        <div
+          className="absolute right-2.5 md:right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+          onMouseDown={(e) => e.preventDefault()}
           onClick={toggleDropdown}
         >
-          <ChevronDown 
-            size={20} 
+          <ChevronDown
+            size={18}
             className={`
-                bg-[#0066ff] hover:bg-blue-700 text-white rounded-sm p-0.5 transition-all duration-200
+                bg-[#0066ff] hover:bg-blue-700 text-white rounded-sm p-0.5 transition-all duration-200 md:w-5 md:h-5
                 ${isOpen ? 'rotate-180' : ''}
                 ${disabled ? 'opacity-50' : ''}
-            `} 
+            `}
           />
         </div>
       </div>
@@ -137,14 +137,14 @@ const Select: React.FC<SelectProps> = ({ label, options, error, value, onChange,
         <div className="absolute z-50 mt-1 w-full overflow-hidden rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 animate-fade-in border border-gray-100 dark:border-gray-700">
           <ul className="max-h-48 overflow-auto py-1 custom-scrollbar">
             {filteredOptions.length === 0 ? (
-              <li className="px-4 py-2 text-sm text-gray-400 italic">No matching options found</li>
+              <li className="px-3 py-1.5 md:px-4 md:py-2 text-[12px] md:text-sm text-gray-400 italic">No matching options found</li>
             ) : (
               filteredOptions.map((opt) => (
                 <li
                   key={opt}
                   className={`
-                    cursor-pointer px-4 py-2 text-gray-900 dark:text-gray-100 hover:bg-blue-50 dark:hover:bg-gray-700
-                    text-[14px] md:text-[15px] font-normal leading-[1.4] /* Dropdown Item */
+                    cursor-pointer px-3 py-1.5 md:px-4 md:py-2 text-gray-900 dark:text-gray-100 hover:bg-blue-50 dark:hover:bg-gray-700
+                    text-[13px] md:text-[15px] font-normal leading-[1.4] /* Dropdown Item */
                     ${opt === value ? 'bg-blue-100 dark:bg-blue-900/40 font-medium' : ''}
                   `}
                   onClick={() => handleSelect(opt)}
@@ -158,9 +158,9 @@ const Select: React.FC<SelectProps> = ({ label, options, error, value, onChange,
           {/* Add New Item Section */}
           <div className="border-t border-gray-100 dark:border-gray-700 p-2 bg-gray-50 dark:bg-gray-800/50">
              <div className="relative">
-                <input 
+                <input
                     type="text"
-                    className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded px-3 py-2 pr-10 focus:outline-none focus:border-blue-400 focus:ring-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full text-[12px] md:text-sm border border-gray-300 dark:border-gray-600 rounded px-2.5 py-1.5 md:px-3 md:py-2 pr-10 focus:outline-none focus:border-blue-400 focus:ring-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     placeholder="Add new item..."
                     value={newItemValue}
                     onChange={(e) => setNewItemValue(e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
