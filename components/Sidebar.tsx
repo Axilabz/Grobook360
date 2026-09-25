@@ -198,15 +198,27 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onNavigat
     }
   }, [isCollapsed]);
 
+  // Mobile drawer open: sits above every page's own fixed content header
+  // (z-[55], see e.g. ProductManagement.tsx) so it isn't covered by
+  // whatever screen is open underneath, but stays below the app's top
+  // Header bar (z-[60]) so that remains reachable. Desktop icon rail
+  // (never an overlay) keeps the original z-50, since nothing else
+  // competes with it there.
+  //
+  // NOTE: any word placed inside the className template literal below —
+  // even inside a "/* comment */" — becomes a real, space-separated class
+  // token the browser will try to match (className is just a string).
+  // A previous version of this comment used the word "sticky" here, which
+  // collided with Tailwind's own `.sticky { position: sticky }` utility
+  // and silently broke this element's `fixed` positioning. Keep
+  // explanatory prose like this OUTSIDE the template literal.
   return (
     <>
       <aside
         className={`
           fixed left-0 top-16 bottom-0 bg-[#f1f5f9] dark:bg-gray-900
-          /* Mobile: No transition (instant), Desktop: Smooth transition */
           transition-none md:transition-all md:duration-300
-          z-50 flex flex-col 
-          /* Mobile: overflow-hidden needed for width 0. Desktop: visible for toggle button */
+          ${isCollapsed ? 'z-50' : 'z-[58] md:z-50'} flex flex-col
           overflow-hidden md:overflow-visible
           ${isCollapsed ? 'w-0 border-0 md:w-16 md:border-r md:border-gray-200 dark:md:border-gray-700' : 'w-full border-r border-gray-200 dark:border-gray-700 md:w-64'}
         `}

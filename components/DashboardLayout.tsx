@@ -37,10 +37,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, currentView
         </div>
       </main>
       
-      {/* Mobile Overlay Backdrop when sidebar is open */}
+      {/* Mobile Overlay Backdrop when sidebar is open — z-[57] sits above
+          every page's own sticky content header (z-[55]) so the drawer it
+          backs (z-[58]) genuinely reads as "on top of the whole screen",
+          not just the plain page content beneath a still-visible header. */}
       {!isSidebarCollapsed && (
-        <div 
-            className="md:hidden fixed inset-0 bg-black/20 z-20 backdrop-blur-sm"
+        <div
+            className="md:hidden fixed inset-0 bg-black/20 z-[57] backdrop-blur-sm"
             onClick={() => setIsSidebarCollapsed(true)}
         ></div>
       )}
