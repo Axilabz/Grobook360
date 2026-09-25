@@ -12,19 +12,55 @@ function buildQuery(params: Record<string, string | number | undefined>): string
 
 // --- Dashboard ---------------------------------------------------------
 
+export interface TopProductRow {
+  product_id: string; sku: string; product_name: string; quantity_sold: string; net_sales: string;
+}
+
+export interface TopPartyOutstandingRow {
+  customer_id?: string; supplier_id?: string; customer_name?: string; supplier_name?: string; outstanding: string;
+}
+
+export interface ReceivablesAging {
+  current: string; days_1_30: string; days_31_60: string; days_61_90: string; days_90_plus: string; no_due_date: string;
+}
+
 export interface DashboardData {
   period: { date_from: string; date_to: string };
-  sales: { net_sales: string; invoice_total: string; invoice_count: number };
+  sales: { net_sales: string; invoice_total: string; invoice_count: number; top_products: TopProductRow[] };
   purchase: { net_purchase: string; invoice_count: number };
-  receivables: { total_outstanding: string };
-  payables: { total_outstanding: string };
-  inventory: { low_stock_item_count: number; inventory_value: string | null };
+  receivables: { total_outstanding: string; aging: ReceivablesAging; top_customers: TopPartyOutstandingRow[] };
+  payables: { total_outstanding: string; top_suppliers: TopPartyOutstandingRow[] };
+  inventory: { low_stock_item_count: number; out_of_stock_item_count: number; inventory_value: string | null };
   gst: { return_period: string; output_gst: string; input_gst: string; net_gst_position: string };
   collections: { customer_collections: string; supplier_payments: string };
+  pipeline: { open_sales_orders: number; pending_delivery_challans: number; unpaid_invoices: number };
+  payment_exceptions: { unallocated_payments: number; cheques_pending: number; cheques_bounced: number };
 }
 
 export async function getDashboard(period: string, dateFrom?: string, dateTo?: string): Promise<DashboardData> {
   return apiRequest<DashboardData>(`/reports/dashboard${buildQuery({ period, date_from: dateFrom, date_to: dateTo })}`);
+}
+
+export interface DashboardAlert {
+  severity: 'CRITICAL' | 'WARNING' | 'INFO' | 'SUCCESS';
+  category: string;
+  title: string;
+  description: string;
+  source_module: string;
+  action_view: string;
+}
+
+export async function getDashboardAlerts(): Promise<DashboardAlert[]> {
+  return apiRequest<DashboardAlert[]>('/reports/dashboard/alerts');
+}
+
+export interface RecentTransaction {
+  type: 'SALES_INVOICE' | 'PURCHASE_INVOICE' | 'CUSTOMER_RECEIPT' | 'SUPPLIER_PAYMENT';
+  reference: string; date: string; party: string; amount: string; status: string;
+}
+
+export async function getRecentTransactions(): Promise<RecentTransaction[]> {
+  return apiRequest<RecentTransaction[]>('/reports/dashboard/recent-transactions');
 }
 
 // --- Sales reports -------------------------------------------------------

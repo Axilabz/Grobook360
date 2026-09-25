@@ -108,6 +108,24 @@ async def get_dashboard(
     return {"data": _jsonify(data), "meta": _meta()}
 
 
+@router.get("/dashboard/alerts")
+async def get_dashboard_alerts(
+    context: AuthenticatedContext = Depends(require_permission(REPORTS_VIEW_DASHBOARD)), session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    tenant_id = _require_tenant(context)
+    data = await DashboardService(session).get_alerts(tenant_id=tenant_id)
+    return {"data": _jsonify(data), "meta": _meta()}
+
+
+@router.get("/dashboard/recent-transactions")
+async def get_dashboard_recent_transactions(
+    context: AuthenticatedContext = Depends(require_permission(REPORTS_VIEW_DASHBOARD)), session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    tenant_id = _require_tenant(context)
+    data = await DashboardService(session).get_recent_transactions(tenant_id=tenant_id)
+    return {"data": _jsonify(data), "meta": _meta()}
+
+
 # --- Sales reports (§10-§15) -----------------------------------------------
 
 
