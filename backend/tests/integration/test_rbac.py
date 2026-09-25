@@ -203,6 +203,7 @@ async def test_manager_gets_view_only_permission_set(client):
         "salary.view", "salary.manage", "attendance.view", "attendance.manage",
         "leave.view", "leave.manage", "leave.approve",
         "payroll.run", "payroll.finalize", "payroll.view", "payroll.view_payslip", "payroll.export",
+        "configuration.view",
     }
 
 
@@ -344,4 +345,5 @@ async def test_new_role_row_is_auto_seeded_with_default_permissions(client, db_s
         "salary.view", "salary.manage", "attendance.view", "attendance.manage",
         "leave.view", "leave.manage", "leave.approve",
         "payroll.run", "payroll.finalize", "payroll.view", "payroll.view_payslip", "payroll.export",
+        "configuration.view",
     }

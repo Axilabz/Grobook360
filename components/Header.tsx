@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, ChevronDown, Menu, LogOut, Building, Shield, Lock, Sun, Moon } from 'lucide-react';
+import { Search, Bell, ChevronDown, Menu, LogOut, Building, Shield, Lock, Sun, Moon, Settings } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import ConnectivityBadge from './ConnectivityBadge';
 
@@ -18,6 +19,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onNavigate, onLogout }) =>
   const profileRef = useRef<HTMLDivElement>(null);
 
   const { theme, toggleTheme } = useTheme();
+  const { hasPermission } = useAuth();
 
   // Requirement: Dynamic User Profile
   const companyName = "Agin Crop";
@@ -154,6 +156,17 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onNavigate, onLogout }) =>
                       <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-[#0066ff] dark:hover:text-blue-400 flex items-center gap-3 transition-colors">
                           <Shield size={16} /> User Permission
                       </button>
+                      {hasPermission('configuration.view') && (
+                        <button
+                          onClick={() => {
+                              onNavigate('Configuration');
+                              setIsProfileOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-[#0066ff] dark:hover:text-blue-400 flex items-center gap-3 transition-colors"
+                        >
+                            <Settings size={16} /> Configuration
+                        </button>
+                      )}
                       <button className="w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 hover:text-[#0066ff] dark:hover:text-blue-400 flex items-center gap-3 transition-colors">
                           <Lock size={16} /> Change Password
                       </button>

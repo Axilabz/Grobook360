@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Plus, X, Loader2, AlertTriangle, Receipt, CheckCircle2,
-  Ban, ChevronLeft, ChevronRight, Eye, FileText, Trash2, RotateCcw,
+  Ban, ChevronLeft, ChevronRight, Eye, FileText, Trash2, RotateCcw, Printer,
 } from 'lucide-react';
 import Input from './Input';
+import InvoiceRenderer, { InvoiceRenderData, BusinessProfileData } from '../shared/InvoiceRenderer';
+import { getInvoiceTemplateConfig, InvoiceTemplateConfig } from '../api/configuration';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import MobileFilterToggle from '../shared/MobileFilterToggle';
@@ -333,6 +335,7 @@ const InvoiceDetailModal: React.FC<{ invoiceId: string; onClose: () => void; onC
   const [confirmAction, setConfirmAction] = useState<'post' | 'cancel' | null>(null);
   const [isActing, setIsActing] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -445,6 +448,9 @@ const InvoiceDetailModal: React.FC<{ invoiceId: string; onClose: () => void; onC
           <EinvoiceEwayBillPanel invoiceId={invoice.id} invoiceStatus={invoice.status} />
 
           <div className="flex flex-wrap gap-2 pt-2">
+            <button onClick={() => setShowPrintPreview(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-[13px] font-medium">
+              <Printer size={14} /> Print / Preview
+            </button>
             {permissions.canPost && invoice.status === 'DRAFT' && (
               <button disabled={isActing} onClick={() => setConfirmAction('post')} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0066ff] hover:bg-blue-700 text-white text-[13px] font-medium">
                 <CheckCircle2 size={14} /> Post Invoice
@@ -471,6 +477,8 @@ const InvoiceDetailModal: React.FC<{ invoiceId: string; onClose: () => void; onC
           onSaved={() => { setShowReturnModal(false); onChanged(); }}
         />
       )}
+
+      {showPrintPreview && <InvoicePrintPreviewModal invoice={invoice} onClose={() => setShowPrintPreview(false)} />}
 
       {confirmAction && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -662,6 +670,79 @@ const CreateReturnFromInvoiceModal: React.FC<{ invoiceId: string; onClose: () =>
           )}
         </div>
       </div>
+    </div>
+  );
+};
+
+// First real Sales Invoice print/preview in this codebase — reuses the
+// exact same InvoiceRenderer component the Configuration screen's own
+// live preview uses, with the tenant's saved InvoiceTemplateConfig
+// (fetched fresh here, not passed a stale copy) so this always reflects
+// current settings. See InvoiceRenderer's own docstring for the
+// documented historical-immutability gap this implies.
+const InvoicePrintPreviewModal: React.FC<{ invoice: SalesInvoiceDetail; onClose: () => void }> = ({ invoice, onClose }) => {
+  const { currentTenant } = useAuth();
+  const { showToast } = useToast();
+  const [config, setConfig] = useState<InvoiceTemplateConfig | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getInvoiceTemplateConfig();
+        if (!cancelled) setConfig(data);
+      } catch {
+        if (!cancelled) showToast('Unable to load invoice appearance settings — using defaults.', 'error');
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const renderData: InvoiceRenderData = {
+    invoice_number: invoice.invoice_number, invoice_date: invoice.invoice_date, status: invoice.status,
+    customer_name: invoice.customer_name, customer_gstin: invoice.customer_gstin, billing_address: invoice.billing_address,
+    lines: invoice.lines.map((l) => ({
+      id: l.id, description: l.description || '', hsn_code: l.hsn_code, quantity: l.quantity, uom: l.uom.code,
+      unit_price: l.unit_price, discount_amount: l.discount_amount, taxable_amount: l.taxable_amount, gst_rate: l.gst_rate,
+      cgst_amount: l.cgst_amount, sgst_amount: l.sgst_amount, igst_amount: l.igst_amount, line_total: l.line_total,
+    })),
+    subtotal: invoice.subtotal, discount_total: invoice.discount_total, taxable_total: invoice.taxable_total,
+    cgst_total: invoice.cgst_total, sgst_total: invoice.sgst_total, igst_total: invoice.igst_total, grand_total: invoice.grand_total,
+  };
+  const business: BusinessProfileData = {
+    business_name: currentTenant?.business_name || 'Your Business', gstin: null,
+    address_line1: null, city: null, state_code: null, pin_code: null,
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-white dark:bg-gray-900 overflow-y-auto print:static">
+      <div className="sticky top-0 z-20 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 print:hidden">
+        <h3 className="text-[16px] font-semibold text-gray-800 dark:text-gray-100">Print Preview</h3>
+        <div className="flex items-center gap-2">
+          <button onClick={() => window.print()} disabled={!config} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#0066ff] hover:bg-blue-700 disabled:opacity-50 text-white text-[13px] font-medium">
+            <Printer size={14} /> Print
+          </button>
+          <button onClick={onClose} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-300"><X size={20} /></button>
+        </div>
+      </div>
+
+      {!config ? (
+        <div className="flex items-center justify-center py-24"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+      ) : (
+        <div className="max-w-3xl mx-auto">
+          <InvoiceRenderer config={config} invoice={renderData} business={business} />
+        </div>
+      )}
+
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .print\\:static, .print\\:static * { visibility: visible; }
+          .print\\:static { position: absolute; inset: 0; }
+          .print\\:hidden { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 };

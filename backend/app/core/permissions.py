@@ -241,6 +241,9 @@ PAYROLL_VIEW = "payroll.view"
 PAYROLL_VIEW_PAYSLIP = "payroll.view_payslip"
 PAYROLL_EXPORT = "payroll.export"
 
+CONFIGURATION_VIEW = "configuration.view"
+CONFIGURATION_MANAGE = "configuration.manage"
+
 ALL_PERMISSIONS: dict[str, str] = {
     USERS_VIEW: "View tenant users",
     USERS_CREATE: "Create tenant users",
@@ -386,6 +389,8 @@ ALL_PERMISSIONS: dict[str, str] = {
     PAYROLL_VIEW: "View payroll runs and records",
     PAYROLL_VIEW_PAYSLIP: "View an individual payslip",
     PAYROLL_EXPORT: "Export payroll register/reports",
+    CONFIGURATION_VIEW: "View tenant configuration (invoice template/appearance settings)",
+    CONFIGURATION_MANAGE: "Change tenant configuration (invoice template/appearance settings, logo)",
 }
 
 # Default role -> permission-code set, applied when a tenant's Role row is
@@ -433,6 +438,7 @@ ROLE_DEFAULT_PERMISSIONS: dict[str, frozenset[str]] = {
             SALARY_VIEW, SALARY_MANAGE, ATTENDANCE_VIEW, ATTENDANCE_MANAGE,
             LEAVE_VIEW, LEAVE_MANAGE, LEAVE_APPROVE,
             PAYROLL_RUN, PAYROLL_FINALIZE, PAYROLL_VIEW, PAYROLL_VIEW_PAYSLIP, PAYROLL_EXPORT,
+            CONFIGURATION_VIEW, CONFIGURATION_MANAGE,
         }
     ),
     "MANAGER": frozenset(
@@ -471,6 +477,7 @@ ROLE_DEFAULT_PERMISSIONS: dict[str, frozenset[str]] = {
             SALARY_VIEW, SALARY_MANAGE, ATTENDANCE_VIEW, ATTENDANCE_MANAGE,
             LEAVE_VIEW, LEAVE_MANAGE, LEAVE_APPROVE,
             PAYROLL_RUN, PAYROLL_FINALIZE, PAYROLL_VIEW, PAYROLL_VIEW_PAYSLIP, PAYROLL_EXPORT,
+            CONFIGURATION_VIEW,
         }
     ),
     # FR-CUST-07 / FR-SUPP-05 (both Confirmed): Salesperson may create/edit

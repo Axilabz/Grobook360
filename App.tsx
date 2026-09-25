@@ -29,6 +29,7 @@ import SyncCenter from './components/SyncCenter';
 import PayrollManagement from './components/PayrollManagement';
 import ViewCompany from './components/ViewCompany';
 import UserManagement from './components/UserManagement';
+import ConfigurationManagement from './components/ConfigurationManagement';
 import { AuthView } from './types';
 import { ToastProvider } from './context/ToastContext';
 import { useTheme } from './context/ThemeContext';
@@ -148,8 +149,9 @@ const App: React.FC = () => {
             {dashboardView === 'Payroll' && <PayrollManagement />}
             {dashboardView === 'View Company' && <ViewCompany />}
             {dashboardView === 'Users' && <UserManagement />}
+            {dashboardView === 'Configuration' && <ConfigurationManagement />}
             {/* Fallback for other routes not implemented yet */}
-            {dashboardView !== 'Home' && dashboardView !== 'Customers' && dashboardView !== 'Suppliers' && dashboardView !== 'Products' && dashboardView !== 'Inventory' && dashboardView !== 'Estimates' && dashboardView !== 'Sales Orders' && dashboardView !== 'Delivery Challans' && dashboardView !== 'Sales Invoices' && dashboardView !== 'Sales Returns' && dashboardView !== 'Credit/Debit Notes' && dashboardView !== 'Purchase Orders' && dashboardView !== 'Goods Receipts' && dashboardView !== 'Purchase Invoices' && dashboardView !== 'Purchase Returns' && dashboardView !== 'Customer Receipts' && dashboardView !== 'Supplier Payments' && dashboardView !== 'Accounting' && dashboardView !== 'GST Filing' && dashboardView !== 'Reports' && dashboardView !== 'Sync Center' && dashboardView !== 'Payroll' && dashboardView !== 'View Company' && dashboardView !== 'Users' && (
+            {dashboardView !== 'Home' && dashboardView !== 'Customers' && dashboardView !== 'Suppliers' && dashboardView !== 'Products' && dashboardView !== 'Inventory' && dashboardView !== 'Estimates' && dashboardView !== 'Sales Orders' && dashboardView !== 'Delivery Challans' && dashboardView !== 'Sales Invoices' && dashboardView !== 'Sales Returns' && dashboardView !== 'Credit/Debit Notes' && dashboardView !== 'Purchase Orders' && dashboardView !== 'Goods Receipts' && dashboardView !== 'Purchase Invoices' && dashboardView !== 'Purchase Returns' && dashboardView !== 'Customer Receipts' && dashboardView !== 'Supplier Payments' && dashboardView !== 'Accounting' && dashboardView !== 'GST Filing' && dashboardView !== 'Reports' && dashboardView !== 'Sync Center' && dashboardView !== 'Payroll' && dashboardView !== 'View Company' && dashboardView !== 'Users' && dashboardView !== 'Configuration' && (
               <div className="p-8 text-center text-gray-500">
                   <h2 className="text-xl font-semibold">Page Under Construction</h2>
                   <p>You navigated to: {dashboardView}</p>
