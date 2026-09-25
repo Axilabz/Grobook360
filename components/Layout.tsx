@@ -1,6 +1,5 @@
 import React from 'react';
 import { AuthView } from '../types';
-import SignInIllustration from '../shared/SignInIllustration';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,11 +10,30 @@ const Layout: React.FC<LayoutProps> = ({ children, currentView }) => {
   return (
     <div className="min-h-screen w-full relative overflow-x-hidden flex items-center justify-center p-4 bg-white">
       
-      {/* --- Full Screen Background Illustration (inline SVG, not an image file) --- */}
+      {/* --- Full Screen Background Image --- */}
       <div className="fixed inset-0 z-0 pointer-events-none select-none">
+        {/* Mobile Background (Visible on small screens, hidden on Sign Up) */}
         {currentView !== AuthView.SIGN_UP && (
-          <SignInIllustration className="w-full h-full" />
+          <img 
+            src="/MobileSignInBackGroundImage.png" 
+            alt="Background Mobile" 
+            className="block md:hidden w-full h-full object-cover"
+          />
         )}
+        
+        {/* Tablet Background (Visible on medium screens, hidden on large screens) */}
+        <img 
+          src="/TabletSignInBackGroundImage.png" 
+          alt="Background Tablet" 
+          className="hidden md:block lg:hidden w-full h-full object-cover"
+        />
+
+        {/* Web/Desktop Background (Visible on large screens and up) */}
+        <img 
+          src="/WebSignInBackGroundImage.png" 
+          alt="Background Web" 
+          className="hidden lg:block w-full h-full object-cover"
+        />
       </div>
 
       {/* Main Content Container */}
