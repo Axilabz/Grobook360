@@ -37,6 +37,7 @@ from decimal import Decimal
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.concurrency import check_row_version
 from app.core.error_codes import (
@@ -55,6 +56,7 @@ from app.models.sales_order_line import SalesOrderLine
 from app.models.stock_ledger_entry import STOCK_OUT
 from app.models.tenant import Tenant
 from app.models.unit_of_measure import UnitOfMeasure
+from app.models.user import User
 from app.schemas.delivery_challan import DeliveryLineInput
 from app.services.audit.audit_service import AuditService
 from app.services.inventory.inventory_service import InventoryService
@@ -68,7 +70,7 @@ from app.services.sales.sales_validation_service import (
 
 @dataclass(frozen=True)
 class DeliveryChallanPage:
-    items: list[tuple[DeliveryChallan, str, str]]  # (challan, customer_name, so_number)
+    items: list[tuple[DeliveryChallan, str, str, str | None, str | None]]  # (challan, customer_name, so_number, created_by_name, updated_by_name)
     total_items: int
 
 
@@ -138,7 +140,7 @@ class DeliveryChallanService:
         self, *, tenant_id: uuid.UUID, sales_order_id: uuid.UUID
     ) -> tuple[SalesOrder, str, list[EligibilityLine]]:
         so_service = SalesOrderService(self._session)
-        order, customer_name, lines = await so_service.get_order(tenant_id=tenant_id, order_id=sales_order_id)
+        order, customer_name, _created_by_name, _updated_by_name, lines = await so_service.get_order(tenant_id=tenant_id, order_id=sales_order_id)
 
         if order.status not in DELIVERY_ELIGIBLE_STATUSES:
             raise ValidationAppError(
@@ -172,10 +174,14 @@ class DeliveryChallanService:
         date_from: date | None,
         date_to: date | None,
     ) -> DeliveryChallanPage:
+        creator = aliased(User)
+        updater = aliased(User)
         base = (
-            select(DeliveryChallan, Customer.name, SalesOrder.order_number)
+            select(DeliveryChallan, Customer.name, SalesOrder.order_number, creator.name, updater.name)
             .join(Customer, Customer.id == DeliveryChallan.customer_id)
             .join(SalesOrder, SalesOrder.id == DeliveryChallan.source_sales_order_id)
+            .outerjoin(creator, creator.id == DeliveryChallan.created_by)
+            .outerjoin(updater, updater.id == DeliveryChallan.updated_by)
             .where(DeliveryChallan.tenant_id == tenant_id)
         )
 
@@ -206,23 +212,27 @@ class DeliveryChallanService:
         paged = base.order_by(DeliveryChallan.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         rows = (await self._session.execute(paged)).all()
 
-        return DeliveryChallanPage(items=[(row[0], row[1], row[2]) for row in rows], total_items=total_items)
+        return DeliveryChallanPage(items=[(row[0], row[1], row[2], row[3], row[4]) for row in rows], total_items=total_items)
 
     async def get_challan(
         self, *, tenant_id: uuid.UUID, challan_id: uuid.UUID
-    ) -> tuple[DeliveryChallan, str, str, list[tuple[DeliveryChallanLine, UnitOfMeasure]]]:
+    ) -> tuple[DeliveryChallan, str, str, str | None, str | None, list[tuple[DeliveryChallanLine, UnitOfMeasure]]]:
+        creator = aliased(User)
+        updater = aliased(User)
         result = await self._session.execute(
-            select(DeliveryChallan, Customer.name, SalesOrder.order_number)
+            select(DeliveryChallan, Customer.name, SalesOrder.order_number, creator.name, updater.name)
             .join(Customer, Customer.id == DeliveryChallan.customer_id)
             .join(SalesOrder, SalesOrder.id == DeliveryChallan.source_sales_order_id)
+            .outerjoin(creator, creator.id == DeliveryChallan.created_by)
+            .outerjoin(updater, updater.id == DeliveryChallan.updated_by)
             .where(DeliveryChallan.id == challan_id, DeliveryChallan.tenant_id == tenant_id)
         )
         row = result.first()
         if row is None:
             raise NotFoundError("Delivery challan not found", code=DC_NOT_FOUND)
-        challan, customer_name, so_number = row
+        challan, customer_name, so_number, created_by_name, updated_by_name = row
         lines = await self._get_lines(challan.id)
-        return challan, customer_name, so_number, lines
+        return challan, customer_name, so_number, created_by_name, updated_by_name, lines
 
     # --- line building (shared by create/update) ----------------------------
 
@@ -308,7 +318,7 @@ class DeliveryChallanService:
     ) -> tuple[DeliveryChallan, str, str, list[tuple[DeliveryChallanLine, UnitOfMeasure]]]:
         tenant = await self._get_tenant(tenant_id)
         so_service = SalesOrderService(self._session)
-        order, _customer_name, _lines = await so_service.get_order(tenant_id=tenant_id, order_id=sales_order_id)
+        order, _customer_name, _created_by_name, _updated_by_name, _lines = await so_service.get_order(tenant_id=tenant_id, order_id=sales_order_id)
 
         if order.status not in DELIVERY_ELIGIBLE_STATUSES:
             raise ValidationAppError(
@@ -397,7 +407,7 @@ class DeliveryChallanService:
             challan.notes = notes
 
         so_service = SalesOrderService(self._session)
-        order, customer_name, _lines = await so_service.get_order(
+        order, customer_name, _created_by_name, _updated_by_name, _lines = await so_service.get_order(
             tenant_id=tenant_id, order_id=challan.source_sales_order_id
         )
 

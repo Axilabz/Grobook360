@@ -36,6 +36,8 @@ export interface PaymentListItem {
   status: PaymentStatus;
   cheque_status: ChequeStatus | null;
   created_by: string | null;
+  created_by_name: string | null;
+  updated_by_name: string | null;
   created_at: string;
   updated_at: string;
   row_version: number;

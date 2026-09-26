@@ -68,7 +68,9 @@ def _to_unit_ref(unit: UnitOfMeasure) -> UnitRef:
     return UnitRef(id=str(unit.id), code=unit.code, name=unit.name)
 
 
-def _to_list_item(order: SalesOrder, customer_name: str) -> SalesOrderListItem:
+def _to_list_item(
+    order: SalesOrder, customer_name: str, created_by_name: str | None = None, updated_by_name: str | None = None
+) -> SalesOrderListItem:
     return SalesOrderListItem(
         id=str(order.id),
         order_number=order.order_number,
@@ -79,6 +81,8 @@ def _to_list_item(order: SalesOrder, customer_name: str) -> SalesOrderListItem:
         source_estimate_id=str(order.source_estimate_id) if order.source_estimate_id else None,
         grand_total=str(order.grand_total),
         created_by=str(order.created_by) if order.created_by else None,
+        created_by_name=created_by_name,
+        updated_by_name=updated_by_name,
         created_at=order.created_at.isoformat(),
         updated_at=order.updated_at.isoformat(),
         row_version=order.row_version,
@@ -106,10 +110,14 @@ def _to_line_item(line: SalesOrderLine, uom: UnitOfMeasure) -> SalesOrderLineIte
 
 
 def _to_detail(
-    order: SalesOrder, customer_name: str, lines: list[tuple[SalesOrderLine, UnitOfMeasure]]
+    order: SalesOrder,
+    customer_name: str,
+    lines: list[tuple[SalesOrderLine, UnitOfMeasure]],
+    created_by_name: str | None = None,
+    updated_by_name: str | None = None,
 ) -> SalesOrderDetail:
     return SalesOrderDetail(
-        **_to_list_item(order, customer_name).model_dump(),
+        **_to_list_item(order, customer_name, created_by_name, updated_by_name).model_dump(),
         customer_gstin=order.customer_gstin,
         billing_address=order.billing_address,
         shipping_address=order.shipping_address,
@@ -159,7 +167,7 @@ async def list_orders(
 
     total_pages = (result.total_items + page_size - 1) // page_size if result.total_items else 0
     return {
-        "data": [_to_list_item(o, name).model_dump() for o, name in result.items],
+        "data": [_to_list_item(o, name, cn, un).model_dump() for o, name, cn, un in result.items],
         "pagination": Pagination(page=page, page_size=page_size, total_items=result.total_items, total_pages=total_pages).model_dump(),
         "meta": _meta(),
     }
@@ -173,8 +181,8 @@ async def get_order(
 ) -> dict:
     tenant_id = _require_tenant(context)
     service = SalesOrderService(session)
-    order, customer_name, lines = await service.get_order(tenant_id=tenant_id, order_id=order_id)
-    return {"data": _to_detail(order, customer_name, lines).model_dump(), "meta": _meta()}
+    order, customer_name, created_by_name, updated_by_name, lines = await service.get_order(tenant_id=tenant_id, order_id=order_id)
+    return {"data": _to_detail(order, customer_name, lines, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 async def _idempotent_post(
@@ -281,8 +289,8 @@ async def confirm_order(
         ip_address=request.client.host if request.client else "unknown",
     )
     await session.commit()
-    _, customer_name, lines = await service.get_order(tenant_id=tenant_id, order_id=order.id)
-    return {"data": _to_detail(order, customer_name, lines).model_dump(), "meta": _meta()}
+    _, customer_name, created_by_name, updated_by_name, lines = await service.get_order(tenant_id=tenant_id, order_id=order.id)
+    return {"data": _to_detail(order, customer_name, lines, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 @router.post("/{order_id}/cancel")
@@ -303,8 +311,8 @@ async def cancel_order(
         ip_address=request.client.host if request.client else "unknown",
     )
     await session.commit()
-    _, customer_name, lines = await service.get_order(tenant_id=tenant_id, order_id=order.id)
-    return {"data": _to_detail(order, customer_name, lines).model_dump(), "meta": _meta()}
+    _, customer_name, created_by_name, updated_by_name, lines = await service.get_order(tenant_id=tenant_id, order_id=order.id)
+    return {"data": _to_detail(order, customer_name, lines, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 @router.get("/{order_id}/delivery-eligibility")

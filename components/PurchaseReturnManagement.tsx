@@ -126,26 +126,30 @@ const PurchaseReturnManagement: React.FC = () => {
               <table className="w-full text-left border-collapse">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    {['Return #', 'Date', 'Invoice', 'Supplier', 'Qty', 'Value', 'Reason', 'Status', 'Actions'].map((h) => (
-                      <th key={h} className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">{h}</th>
+                    {[
+                      { label: 'Return #', align: 'text-left' }, { label: 'Date', align: 'text-right' }, { label: 'Invoice', align: 'text-left' },
+                      { label: 'Supplier', align: 'text-left' }, { label: 'Qty', align: 'text-right' }, { label: 'Value', align: 'text-right' },
+                      { label: 'Reason', align: 'text-left' }, { label: 'Status', align: 'text-left' }, { label: 'Actions', align: 'text-center' },
+                    ].map((h) => (
+                      <th key={h.label} className={`px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider ${h.align}`}>{h.label}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {items.map((ret) => (
                     <tr key={ret.id} className="hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
-                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap text-left">
                         <button onClick={() => setViewingId(ret.id)} className="hover:text-[#0066ff] hover:underline">{ret.purchase_return_number}</button>
                       </td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{ret.document_date}</td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-right">{ret.document_date}</td>
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">
                         <span className="inline-flex items-center gap-1"><FileText size={12} /> {ret.source_purchase_invoice_number}</span>
                       </td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">{ret.supplier_name}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">{ret.total_return_quantity}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{ret.grand_total}</td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{ret.return_reason}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-left">{ret.supplier_name}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">{ret.total_return_quantity}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{ret.grand_total}</td>
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{ret.return_reason}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[ret.status]}`}>{ret.status}</span>
                       </td>
                       <td className="px-6 py-4 text-center whitespace-nowrap">

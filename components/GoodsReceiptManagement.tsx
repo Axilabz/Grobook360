@@ -129,27 +129,31 @@ const GoodsReceiptManagement: React.FC = () => {
               <table className="w-full text-left border-collapse">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    {['GRN #', 'Date', 'Purchase Order', 'Supplier', 'Total Qty', 'Status', 'Created By', 'Actions'].map((h) => (
-                      <th key={h} className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">{h}</th>
+                    {[
+                      { label: 'GRN #', align: 'text-left' }, { label: 'Date', align: 'text-right' }, { label: 'Purchase Order', align: 'text-left' },
+                      { label: 'Supplier', align: 'text-left' }, { label: 'Total Qty', align: 'text-right' }, { label: 'Status', align: 'text-left' },
+                      { label: 'Created By', align: 'text-left' }, { label: 'Actions', align: 'text-center' },
+                    ].map((h) => (
+                      <th key={h.label} className={`px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider ${h.align}`}>{h.label}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {items.map((gr) => (
                     <tr key={gr.id} className="hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
-                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap text-left">
                         <button onClick={() => setViewingId(gr.id)} className="hover:text-[#0066ff] hover:underline">{gr.grn_number}</button>
                       </td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{gr.document_date}</td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-right">{gr.document_date}</td>
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">
                         <span className="inline-flex items-center gap-1"><FileText size={12} /> {gr.source_purchase_order_number || '—'}</span>
                       </td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">{gr.supplier_name}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">{gr.total_quantity}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-left">{gr.supplier_name}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">{gr.total_quantity}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[gr.status]}`}>{gr.status}</span>
                       </td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{gr.created_by ? gr.created_by.slice(0, 8) : '—'}</td>
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{gr.created_by_name || '—'}</td>
                       <td className="px-6 py-4 text-center whitespace-nowrap">
                         <button onClick={() => setViewingId(gr.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View">
                           <Eye size={16} />

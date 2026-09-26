@@ -77,7 +77,10 @@ def _to_unit_ref(unit: UnitOfMeasure) -> UnitRef:
     return UnitRef(id=str(unit.id), code=unit.code, name=unit.name)
 
 
-def _to_list_item(order: PurchaseOrder, supplier_name: str, totals: QuantityTotals) -> PurchaseOrderListItem:
+def _to_list_item(
+    order: PurchaseOrder, supplier_name: str, totals: QuantityTotals,
+    created_by_name: str | None = None, updated_by_name: str | None = None,
+) -> PurchaseOrderListItem:
     return PurchaseOrderListItem(
         id=str(order.id), po_number=order.po_number, document_date=order.document_date.isoformat(),
         supplier_id=str(order.supplier_id), supplier_name=supplier_name,
@@ -87,7 +90,9 @@ def _to_list_item(order: PurchaseOrder, supplier_name: str, totals: QuantityTota
         total_ordered_quantity=str(totals.ordered), total_received_quantity=str(totals.received),
         total_remaining_quantity=str(totals.remaining),
         grand_total=str(order.grand_total), tax_total=str(order.tax_total),
-        created_by=str(order.created_by) if order.created_by else None, created_at=order.created_at.isoformat(),
+        created_by=str(order.created_by) if order.created_by else None,
+        created_by_name=created_by_name, updated_by_name=updated_by_name,
+        created_at=order.created_at.isoformat(),
         updated_at=order.updated_at.isoformat(), row_version=order.row_version,
     )
 
@@ -104,10 +109,11 @@ def _to_line_item(line: PurchaseOrderLine, uom: UnitOfMeasure) -> PurchaseOrderL
 
 
 def _to_detail(
-    order: PurchaseOrder, supplier_name: str, lines: list[tuple[PurchaseOrderLine, UnitOfMeasure]], totals: QuantityTotals
+    order: PurchaseOrder, supplier_name: str, lines: list[tuple[PurchaseOrderLine, UnitOfMeasure]], totals: QuantityTotals,
+    created_by_name: str | None = None, updated_by_name: str | None = None,
 ) -> PurchaseOrderDetail:
     return PurchaseOrderDetail(
-        **_to_list_item(order, supplier_name, totals).model_dump(), supplier_gstin=order.supplier_gstin,
+        **_to_list_item(order, supplier_name, totals, created_by_name, updated_by_name).model_dump(), supplier_gstin=order.supplier_gstin,
         billing_address=order.billing_address, shipping_address=order.shipping_address,
         place_of_supply_state_code=order.place_of_supply_state_code,
         payment_terms=order.payment_terms, delivery_terms=order.delivery_terms,
@@ -137,8 +143,8 @@ async def list_orders(
     total_pages = (result.total_items + page_size - 1) // page_size if result.total_items else 0
     return {
         "data": [
-            _to_list_item(order, name, QuantityTotals(ordered=ordered, received=received, remaining=remaining)).model_dump()
-            for order, name, ordered, received, remaining in result.items
+            _to_list_item(order, name, QuantityTotals(ordered=ordered, received=received, remaining=remaining), cbn, ubn).model_dump()
+            for order, name, ordered, received, remaining, cbn, ubn in result.items
         ],
         "pagination": Pagination(page=page, page_size=page_size, total_items=result.total_items, total_pages=total_pages).model_dump(),
         "meta": _meta(),
@@ -153,7 +159,8 @@ async def get_order(
     tenant_id = _require_tenant(context)
     service = PurchaseOrderService(session)
     order, supplier_name, lines, totals = await service.get_order(tenant_id=tenant_id, order_id=order_id)
-    return {"data": _to_detail(order, supplier_name, lines, totals).model_dump(), "meta": _meta()}
+    created_by_name, updated_by_name = await service.get_creator_names(order)
+    return {"data": _to_detail(order, supplier_name, lines, totals, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 async def _idempotent_post(
@@ -232,7 +239,8 @@ async def confirm_order(
     )
     await session.commit()
     order, supplier_name, lines, totals = await service.get_order(tenant_id=tenant_id, order_id=order_id)
-    return {"data": _to_detail(order, supplier_name, lines, totals).model_dump(), "meta": _meta()}
+    created_by_name, updated_by_name = await service.get_creator_names(order)
+    return {"data": _to_detail(order, supplier_name, lines, totals, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 @router.post("/{order_id}/cancel")
@@ -248,7 +256,8 @@ async def cancel_order(
     )
     await session.commit()
     order, supplier_name, lines, totals = await service.get_order(tenant_id=tenant_id, order_id=order_id)
-    return {"data": _to_detail(order, supplier_name, lines, totals).model_dump(), "meta": _meta()}
+    created_by_name, updated_by_name = await service.get_creator_names(order)
+    return {"data": _to_detail(order, supplier_name, lines, totals, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 @router.get("/{order_id}/receipt-eligibility")

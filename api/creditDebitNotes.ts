@@ -37,6 +37,8 @@ export interface CreditDebitNoteListItem {
   grand_total: string;
   tax_total: string;
   created_by: string | null;
+  created_by_name: string | null;
+  updated_by_name: string | null;
   created_at: string;
   updated_at: string;
   row_version: number;

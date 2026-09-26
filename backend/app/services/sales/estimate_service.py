@@ -21,6 +21,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.concurrency import check_row_version
@@ -32,7 +33,9 @@ from app.core.error_codes import (
 )
 from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
 from app.core.sales_constants import ESTIMATE
+from app.models.audit_log import AuditLog
 from app.models.customer import Customer
+from app.models.user import User
 from app.models.sales_estimate import (
     ACCEPTED,
     CANCELLED,
@@ -91,7 +94,7 @@ def apply_estimate_expiry_if_needed(estimate: SalesEstimate) -> bool:
 
 @dataclass(frozen=True)
 class EstimatePage:
-    items: list[tuple[SalesEstimate, str]]  # (estimate, customer_name)
+    items: list[tuple[SalesEstimate, str, str | None, str | None]]  # (estimate, customer_name, created_by_name, updated_by_name)
     total_items: int
 
 
@@ -224,9 +227,13 @@ class EstimateService:
         date_from: date | None,
         date_to: date | None,
     ) -> EstimatePage:
+        creator = aliased(User)
+        updater = aliased(User)
         base = (
-            select(SalesEstimate, Customer.name)
+            select(SalesEstimate, Customer.name, creator.name, updater.name)
             .join(Customer, Customer.id == SalesEstimate.customer_id)
+            .outerjoin(creator, creator.id == SalesEstimate.created_by)
+            .outerjoin(updater, updater.id == SalesEstimate.updated_by)
             .where(SalesEstimate.tenant_id == tenant_id)
         )
 
@@ -248,26 +255,54 @@ class EstimateService:
         paged = base.order_by(SalesEstimate.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         rows = (await self._session.execute(paged)).all()
 
-        return EstimatePage(items=[(row[0], row[1]) for row in rows], total_items=total_items)
+        return EstimatePage(items=[(row[0], row[1], row[2], row[3]) for row in rows], total_items=total_items)
 
     async def get_estimate(
         self, *, tenant_id: uuid.UUID, estimate_id: uuid.UUID
-    ) -> tuple[SalesEstimate, str, list[tuple[SalesEstimateLine, UnitOfMeasure]]]:
+    ) -> tuple[SalesEstimate, str, str | None, str | None, list[tuple[SalesEstimateLine, UnitOfMeasure]]]:
+        creator = aliased(User)
+        updater = aliased(User)
         result = await self._session.execute(
-            select(SalesEstimate, Customer.name)
+            select(SalesEstimate, Customer.name, creator.name, updater.name)
             .join(Customer, Customer.id == SalesEstimate.customer_id)
+            .outerjoin(creator, creator.id == SalesEstimate.created_by)
+            .outerjoin(updater, updater.id == SalesEstimate.updated_by)
             .where(SalesEstimate.id == estimate_id, SalesEstimate.tenant_id == tenant_id)
         )
         row = result.first()
         if row is None:
             raise NotFoundError("Estimate not found", code=EST_NOT_FOUND)
-        estimate, customer_name = row
+        estimate, customer_name, created_by_name, updated_by_name = row
 
         if self._apply_expiry_if_needed(estimate):
             await self._session.flush()
 
         lines = await self._get_lines(estimate.id)
-        return estimate, customer_name, lines
+        return estimate, customer_name, created_by_name, updated_by_name, lines
+
+    # --- audit history ---------------------------------------------------
+
+    async def get_audit_history(self, *, tenant_id: uuid.UUID, estimate_id: uuid.UUID) -> list[tuple[AuditLog, str | None]]:
+        """The audit trail shown on the Estimate detail screen — mirrors
+        `PurchaseOrderService.get_audit_history`'s exact established
+        pattern (PROMPT-020 §34/§38): narrow, estimate-scoped, tenant-
+        ownership-confirmed-first read, not a general audit-log API.
+        Also resolves each event's actor to a display name (a join the
+        original PO version didn't need to do at read time since its
+        own frontend only showed the actor's id)."""
+        exists_result = await self._session.execute(
+            select(SalesEstimate.id).where(SalesEstimate.id == estimate_id, SalesEstimate.tenant_id == tenant_id)
+        )
+        if exists_result.scalar_one_or_none() is None:
+            raise NotFoundError("Estimate not found", code=EST_NOT_FOUND)
+
+        result = await self._session.execute(
+            select(AuditLog, User.name)
+            .outerjoin(User, User.id == AuditLog.actor_user_id)
+            .where(AuditLog.tenant_id == tenant_id, AuditLog.entity_type == "sales_estimate", AuditLog.entity_id == estimate_id)
+            .order_by(AuditLog.occurred_at.asc())
+        )
+        return [(row[0], row[1]) for row in result.all()]
 
     # --- create / update ---------------------------------------------------
 

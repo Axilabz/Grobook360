@@ -25,19 +25,27 @@ const StatCard: React.FC<{ label: string; value: string; tone?: 'default' | 'pos
   </div>
 );
 
+// Right-align date/number columns (amounts, quantities, dates), left-align
+// everything else — a heuristic on the column label since DataTable's rows
+// carry no per-column type metadata of their own.
+const NUMERIC_DATE_COLUMN_PATTERN = /date|amount|taxable|gst|cgst|sgst|igst|total|qty|quantity|paid|outstanding|balance|debit|credit|allocated|value/i;
+function columnAlign(label: string): 'text-right' | 'text-left' {
+  return NUMERIC_DATE_COLUMN_PATTERN.test(label) ? 'text-right' : 'text-left';
+}
+
 const DataTable: React.FC<{ columns: string[]; rows: (string | number)[][] }> = ({ columns, rows }) => (
   <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
     <div className="overflow-x-auto">
       <table className="w-full text-left border-collapse text-[13px]">
         <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-          <tr>{columns.map((c) => <th key={c} className="px-4 py-2.5 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap">{c}</th>)}</tr>
+          <tr>{columns.map((c) => <th key={c} className={`px-4 py-2.5 text-[11px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap ${columnAlign(c)}`}>{c}</th>)}</tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
           {rows.length === 0 ? (
             <tr><td colSpan={columns.length} className="px-4 py-8 text-center text-gray-400">No data for the selected filters.</td></tr>
           ) : rows.map((row, i) => (
             <tr key={i} className="hover:bg-blue-50 dark:hover:bg-gray-800">
-              {row.map((cell, j) => <td key={j} className="px-4 py-2.5 text-gray-700 dark:text-gray-300 whitespace-nowrap">{cell}</td>)}
+              {row.map((cell, j) => <td key={j} className={`px-4 py-2.5 text-gray-700 dark:text-gray-300 whitespace-nowrap ${columnAlign(columns[j])}`}>{cell}</td>)}
             </tr>
           ))}
         </tbody>

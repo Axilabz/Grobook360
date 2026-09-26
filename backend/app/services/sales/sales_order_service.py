@@ -29,12 +29,14 @@ from decimal import Decimal
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.concurrency import check_row_version
 from app.core.error_codes import SO_INVALID_STATUS, SO_NOT_FOUND
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.core.sales_constants import SALES_ORDER
 from app.models.customer import Customer
+from app.models.user import User
 from app.models.sales_order import (
     CANCELLABLE_STATUSES,
     CANCELLED,
@@ -65,7 +67,7 @@ from app.services.sales.sales_validation_service import (
 
 @dataclass(frozen=True)
 class SalesOrderPage:
-    items: list[tuple[SalesOrder, str]]  # (order, customer_name)
+    items: list[tuple[SalesOrder, str, str | None, str | None]]  # (order, customer_name, created_by_name, updated_by_name)
     total_items: int
 
 
@@ -259,9 +261,13 @@ class SalesOrderService:
         date_to: date | None,
         from_estimate_only: bool | None,
     ) -> SalesOrderPage:
+        creator = aliased(User)
+        updater = aliased(User)
         base = (
-            select(SalesOrder, Customer.name)
+            select(SalesOrder, Customer.name, creator.name, updater.name)
             .join(Customer, Customer.id == SalesOrder.customer_id)
+            .outerjoin(creator, creator.id == SalesOrder.created_by)
+            .outerjoin(updater, updater.id == SalesOrder.updated_by)
             .where(SalesOrder.tenant_id == tenant_id)
         )
 
@@ -289,22 +295,26 @@ class SalesOrderService:
         paged = base.order_by(SalesOrder.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         rows = (await self._session.execute(paged)).all()
 
-        return SalesOrderPage(items=[(row[0], row[1]) for row in rows], total_items=total_items)
+        return SalesOrderPage(items=[(row[0], row[1], row[2], row[3]) for row in rows], total_items=total_items)
 
     async def get_order(
         self, *, tenant_id: uuid.UUID, order_id: uuid.UUID
-    ) -> tuple[SalesOrder, str, list[tuple[SalesOrderLine, UnitOfMeasure]]]:
+    ) -> tuple[SalesOrder, str, str | None, str | None, list[tuple[SalesOrderLine, UnitOfMeasure]]]:
+        creator = aliased(User)
+        updater = aliased(User)
         result = await self._session.execute(
-            select(SalesOrder, Customer.name)
+            select(SalesOrder, Customer.name, creator.name, updater.name)
             .join(Customer, Customer.id == SalesOrder.customer_id)
+            .outerjoin(creator, creator.id == SalesOrder.created_by)
+            .outerjoin(updater, updater.id == SalesOrder.updated_by)
             .where(SalesOrder.id == order_id, SalesOrder.tenant_id == tenant_id)
         )
         row = result.first()
         if row is None:
             raise NotFoundError("Sales order not found", code=SO_NOT_FOUND)
-        order, customer_name = row
+        order, customer_name, created_by_name, updated_by_name = row
         lines = await self._get_lines(order.id)
-        return order, customer_name, lines
+        return order, customer_name, created_by_name, updated_by_name, lines
 
     # --- create / update (manual) -------------------------------------------
 

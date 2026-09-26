@@ -48,6 +48,7 @@ from decimal import Decimal
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.concurrency import check_row_version
 from app.core.error_codes import (
@@ -72,6 +73,7 @@ from app.models.credit_debit_note import (
 )
 from app.models.credit_debit_note_line import CreditDebitNoteLine
 from app.models.customer import Customer
+from app.models.user import User
 from app.models.sales_invoice import POSTED as SI_POSTED
 from app.models.sales_invoice import SalesInvoice
 from app.models.sales_invoice_line import SalesInvoiceLine
@@ -98,7 +100,7 @@ _NUMBERING = {
 
 @dataclass(frozen=True)
 class CreditDebitNotePage:
-    items: list[tuple[CreditDebitNote, str, str]]  # (note, customer_name, source_invoice_number)
+    items: list[tuple[CreditDebitNote, str, str, str | None, str | None]]  # (note, customer_name, source_invoice_number, created_by_name, updated_by_name)
     total_items: int
 
 
@@ -180,10 +182,14 @@ class CreditDebitNoteService:
         date_from: date | None,
         date_to: date | None,
     ) -> CreditDebitNotePage:
+        creator = aliased(User)
+        updater = aliased(User)
         base = (
-            select(CreditDebitNote, Customer.name, SalesInvoice.invoice_number)
+            select(CreditDebitNote, Customer.name, SalesInvoice.invoice_number, creator.name, updater.name)
             .join(Customer, Customer.id == CreditDebitNote.customer_id)
             .join(SalesInvoice, SalesInvoice.id == CreditDebitNote.source_invoice_id)
+            .outerjoin(creator, creator.id == CreditDebitNote.created_by)
+            .outerjoin(updater, updater.id == CreditDebitNote.updated_by)
             .where(CreditDebitNote.tenant_id == tenant_id)
         )
 
@@ -216,23 +222,27 @@ class CreditDebitNoteService:
         paged = base.order_by(CreditDebitNote.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         rows = (await self._session.execute(paged)).all()
 
-        return CreditDebitNotePage(items=[(row[0], row[1], row[2]) for row in rows], total_items=total_items)
+        return CreditDebitNotePage(items=[(row[0], row[1], row[2], row[3], row[4]) for row in rows], total_items=total_items)
 
     async def get_note(
         self, *, tenant_id: uuid.UUID, note_id: uuid.UUID
-    ) -> tuple[CreditDebitNote, str, str, list[tuple[CreditDebitNoteLine, UnitOfMeasure]]]:
+    ) -> tuple[CreditDebitNote, str, str, str | None, str | None, list[tuple[CreditDebitNoteLine, UnitOfMeasure]]]:
+        creator = aliased(User)
+        updater = aliased(User)
         result = await self._session.execute(
-            select(CreditDebitNote, Customer.name, SalesInvoice.invoice_number)
+            select(CreditDebitNote, Customer.name, SalesInvoice.invoice_number, creator.name, updater.name)
             .join(Customer, Customer.id == CreditDebitNote.customer_id)
             .join(SalesInvoice, SalesInvoice.id == CreditDebitNote.source_invoice_id)
+            .outerjoin(creator, creator.id == CreditDebitNote.created_by)
+            .outerjoin(updater, updater.id == CreditDebitNote.updated_by)
             .where(CreditDebitNote.id == note_id, CreditDebitNote.tenant_id == tenant_id)
         )
         row = result.first()
         if row is None:
             raise NotFoundError("Credit/debit note not found", code=CDN_NOT_FOUND)
-        note, customer_name, invoice_number = row
+        note, customer_name, invoice_number, created_by_name, updated_by_name = row
         lines = await self._get_lines(note.id)
-        return note, customer_name, invoice_number, lines
+        return note, customer_name, invoice_number, created_by_name, updated_by_name, lines
 
     # --- line building (shared by create/update) ----------------------------
 

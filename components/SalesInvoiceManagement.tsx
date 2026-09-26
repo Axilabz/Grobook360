@@ -134,26 +134,30 @@ const SalesInvoiceManagement: React.FC = () => {
               <table className="w-full text-left border-collapse">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    {['Invoice #', 'Date', 'Customer', 'Type', 'Amount', 'GST', 'Status', 'Source', 'Actions'].map((h) => (
-                      <th key={h} className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">{h}</th>
+                    {[
+                      { label: 'Invoice #', align: 'text-left' }, { label: 'Date', align: 'text-right' }, { label: 'Customer', align: 'text-left' },
+                      { label: 'Type', align: 'text-left' }, { label: 'Amount', align: 'text-right' }, { label: 'GST', align: 'text-right' },
+                      { label: 'Status', align: 'text-left' }, { label: 'Source', align: 'text-left' }, { label: 'Actions', align: 'text-center' },
+                    ].map((h) => (
+                      <th key={h.label} className={`px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider ${h.align}`}>{h.label}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {items.map((inv) => (
                     <tr key={inv.id} className="hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
-                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap text-left">
                         <button onClick={() => setViewingId(inv.id)} className="hover:text-[#0066ff] hover:underline">{inv.invoice_number}</button>
                       </td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{inv.invoice_date}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">{inv.customer_name}</td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{TYPE_LABEL[inv.invoice_type]}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{inv.grand_total}</td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">₹{inv.tax_total}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-right">{inv.invoice_date}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-left">{inv.customer_name}</td>
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{TYPE_LABEL[inv.invoice_type]}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{inv.grand_total}</td>
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-right">₹{inv.tax_total}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[inv.status]}`}>{inv.status}</span>
                       </td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">
                         {inv.source_delivery_challan_number ? (
                           <span className="inline-flex items-center gap-1 text-purple-600 dark:text-purple-400"><FileText size={12} /> {inv.source_delivery_challan_number}</span>
                         ) : 'Direct'}

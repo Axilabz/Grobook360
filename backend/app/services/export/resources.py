@@ -163,7 +163,7 @@ def _make_payment_fetcher(party_type: str):
                 "unallocated_amount": p.unallocated_amount, "status": p.status,
                 "reference_number": p.reference_number,
             }
-            for p, party_name in result.items
+            for p, party_name, _cbn, _ubn in result.items
         ]
         return rows, result.total_items
     return _fetch

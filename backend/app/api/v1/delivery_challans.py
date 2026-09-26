@@ -71,7 +71,13 @@ def _to_unit_ref(unit: UnitOfMeasure) -> UnitRef:
     return UnitRef(id=str(unit.id), code=unit.code, name=unit.name)
 
 
-def _to_list_item(challan: DeliveryChallan, customer_name: str, so_number: str) -> DeliveryChallanListItem:
+def _to_list_item(
+    challan: DeliveryChallan,
+    customer_name: str,
+    so_number: str,
+    created_by_name: str | None = None,
+    updated_by_name: str | None = None,
+) -> DeliveryChallanListItem:
     return DeliveryChallanListItem(
         id=str(challan.id),
         challan_number=challan.challan_number,
@@ -83,6 +89,8 @@ def _to_list_item(challan: DeliveryChallan, customer_name: str, so_number: str) 
         status=challan.status,
         total_quantity=str(challan.total_quantity),
         created_by=str(challan.created_by) if challan.created_by else None,
+        created_by_name=created_by_name,
+        updated_by_name=updated_by_name,
         created_at=challan.created_at.isoformat(),
         updated_at=challan.updated_at.isoformat(),
         row_version=challan.row_version,
@@ -110,9 +118,11 @@ def _to_detail(
     customer_name: str,
     so_number: str,
     lines: list[tuple[DeliveryChallanLine, UnitOfMeasure]],
+    created_by_name: str | None = None,
+    updated_by_name: str | None = None,
 ) -> DeliveryChallanDetail:
     return DeliveryChallanDetail(
-        **_to_list_item(challan, customer_name, so_number).model_dump(),
+        **_to_list_item(challan, customer_name, so_number, created_by_name, updated_by_name).model_dump(),
         billing_address=challan.billing_address,
         shipping_address=challan.shipping_address,
         place_of_supply_state_code=challan.place_of_supply_state_code,
@@ -154,7 +164,7 @@ async def list_challans(
 
     total_pages = (result.total_items + page_size - 1) // page_size if result.total_items else 0
     return {
-        "data": [_to_list_item(c, name, so_num).model_dump() for c, name, so_num in result.items],
+        "data": [_to_list_item(c, name, so_num, cbn, ubn).model_dump() for c, name, so_num, cbn, ubn in result.items],
         "pagination": Pagination(page=page, page_size=page_size, total_items=result.total_items, total_pages=total_pages).model_dump(),
         "meta": _meta(),
     }
@@ -168,8 +178,8 @@ async def get_challan(
 ) -> dict:
     tenant_id = _require_tenant(context)
     service = DeliveryChallanService(session)
-    challan, customer_name, so_number, lines = await service.get_challan(tenant_id=tenant_id, challan_id=challan_id)
-    return {"data": _to_detail(challan, customer_name, so_number, lines).model_dump(), "meta": _meta()}
+    challan, customer_name, so_number, created_by_name, updated_by_name, lines = await service.get_challan(tenant_id=tenant_id, challan_id=challan_id)
+    return {"data": _to_detail(challan, customer_name, so_number, lines, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 async def _idempotent_post(
@@ -316,8 +326,8 @@ async def cancel_challan(
         ip_address=request.client.host if request.client else "unknown",
     )
     await session.commit()
-    _, customer_name, so_number, lines = await service.get_challan(tenant_id=tenant_id, challan_id=challan.id)
-    return {"data": _to_detail(challan, customer_name, so_number, lines).model_dump(), "meta": _meta()}
+    _, customer_name, so_number, created_by_name, updated_by_name, lines = await service.get_challan(tenant_id=tenant_id, challan_id=challan.id)
+    return {"data": _to_detail(challan, customer_name, so_number, lines, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 @router.get("/{challan_id}/invoice-eligibility")

@@ -185,20 +185,20 @@ const CustomerManagement: React.FC = () => {
               <table className="w-full text-left border-collapse">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Code</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Phone</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">GSTIN</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Balance</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider text-center">Actions</th>
+                    {[
+                      { label: 'Code', align: 'text-left' }, { label: 'Name', align: 'text-left' }, { label: 'Phone', align: 'text-left' },
+                      { label: 'GSTIN', align: 'text-left' }, { label: 'Balance', align: 'text-right' }, { label: 'Status', align: 'text-left' },
+                      { label: 'Actions', align: 'text-center' },
+                    ].map((h) => (
+                      <th key={h.label} className={`px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider ${h.align}`}>{h.label}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {customers.map((customer) => (
                     <tr key={customer.id} className="hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{customer.customer_code}</td>
-                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{customer.customer_code}</td>
+                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap text-left">
                         <button onClick={() => setViewingCustomer(customer)} className="hover:text-[#0066ff] hover:underline text-left">
                           {customer.name}
                         </button>
@@ -206,10 +206,10 @@ const CustomerManagement: React.FC = () => {
                           <span title="Balance exceeds credit limit" className="ml-2 inline-flex"><AlertTriangle size={14} className="text-amber-500" /></span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">{customer.phone || '—'}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">{customer.gstin || <span className="text-gray-400 italic">Unregistered</span>}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{customer.balance}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-left">{customer.phone || '—'}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-left">{customer.gstin || <span className="text-gray-400 italic">Unregistered</span>}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{customer.balance}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[customer.status]}`}>
                           {customer.status}
                         </span>

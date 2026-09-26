@@ -200,32 +200,30 @@ const ProductManagement: React.FC = () => {
               <table className="w-full text-left border-collapse">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">SKU</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">HSN</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">GST%</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Unit</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Selling Price</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">MRP</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider text-center">Actions</th>
+                    {[
+                      { label: 'SKU', align: 'text-left' }, { label: 'Name', align: 'text-left' }, { label: 'HSN', align: 'text-left' },
+                      { label: 'GST%', align: 'text-right' }, { label: 'Unit', align: 'text-left' }, { label: 'Selling Price', align: 'text-right' },
+                      { label: 'MRP', align: 'text-right' }, { label: 'Status', align: 'text-left' }, { label: 'Actions', align: 'text-center' },
+                    ].map((h) => (
+                      <th key={h.label} className={`px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider ${h.align}`}>{h.label}</th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {products.map((product) => (
                     <tr key={product.id} className="hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{product.sku}</td>
-                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{product.sku}</td>
+                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap text-left">
                         <button onClick={() => setViewingProduct(product)} className="hover:text-[#0066ff] hover:underline text-left">
                           {product.name}
                         </button>
                       </td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">{product.hsn_code || '—'}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">{product.gst_rate !== null ? `${product.gst_rate}%` : '—'}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">{product.base_uom.code}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{product.selling_price}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{product.mrp}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-left">{product.hsn_code || '—'}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">{product.gst_rate !== null ? `${product.gst_rate}%` : '—'}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-left">{product.base_uom.code}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{product.selling_price}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{product.mrp}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[product.status]}`}>
                           {product.status}
                         </span>

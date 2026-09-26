@@ -41,6 +41,7 @@ from decimal import Decimal
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.concurrency import check_row_version
 from app.core.error_codes import (
@@ -81,6 +82,7 @@ from app.models.purchase_invoice import PurchaseInvoice
 from app.models.sales_invoice import POSTED as SI_POSTED
 from app.models.sales_invoice import SalesInvoice
 from app.models.supplier import Supplier
+from app.models.user import User
 from app.models.tenant import Tenant
 from app.schemas.payments import AllocationLineInput
 from app.services.accounting.accounting_posting_service import AccountingPostingService
@@ -101,7 +103,7 @@ _NUMBERING = {
 
 @dataclass(frozen=True)
 class PaymentPage:
-    items: list[tuple[Payment, str]]  # (payment, party_name)
+    items: list[tuple[Payment, str, str | None, str | None]]  # (payment, party_name, created_by_name, updated_by_name)
     total_items: int
 
 
@@ -220,10 +222,14 @@ class PaymentService:
         status_filter: str | None, party_id: uuid.UUID | None, payment_method_filter: str | None,
         date_from: date | None, date_to: date | None,
     ) -> PaymentPage:
+        creator = aliased(User)
+        updater = aliased(User)
         if party_type == CUSTOMER:
             base = (
-                select(Payment, Customer.name)
+                select(Payment, Customer.name, creator.name, updater.name)
                 .join(Customer, Customer.id == Payment.customer_id)
+                .outerjoin(creator, creator.id == Payment.created_by)
+                .outerjoin(updater, updater.id == Payment.updated_by)
                 .where(Payment.tenant_id == tenant_id, Payment.party_type == CUSTOMER)
             )
             if search:
@@ -231,8 +237,10 @@ class PaymentService:
                 base = base.where(or_(Payment.payment_number.ilike(like), Payment.reference_number.ilike(like), Customer.name.ilike(like)))
         else:
             base = (
-                select(Payment, Supplier.name)
+                select(Payment, Supplier.name, creator.name, updater.name)
                 .join(Supplier, Supplier.id == Payment.supplier_id)
+                .outerjoin(creator, creator.id == Payment.created_by)
+                .outerjoin(updater, updater.id == Payment.updated_by)
                 .where(Payment.tenant_id == tenant_id, Payment.party_type == SUPPLIER)
             )
             if search:
@@ -255,16 +263,27 @@ class PaymentService:
 
         paged = base.order_by(Payment.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         rows = (await self._session.execute(paged)).all()
-        return PaymentPage(items=[(row[0], row[1]) for row in rows], total_items=total_items)
+        return PaymentPage(items=[(row[0], row[1], row[2], row[3]) for row in rows], total_items=total_items)
 
-    async def get_payment(self, *, tenant_id: uuid.UUID, payment_id: uuid.UUID) -> tuple[Payment, str, list[PaymentAllocation]]:
+    async def get_payment(
+        self, *, tenant_id: uuid.UUID, payment_id: uuid.UUID
+    ) -> tuple[Payment, str, str | None, str | None, list[PaymentAllocation]]:
         result = await self._session.execute(select(Payment).where(Payment.id == payment_id, Payment.tenant_id == tenant_id))
         payment = result.scalar_one_or_none()
         if payment is None:
             raise NotFoundError("Payment not found", code=PAY_NOT_FOUND)
         party_name = await self._party_name(payment)
         allocations = await self._get_allocations(payment.id)
-        return payment, party_name, allocations
+        created_by_name, updated_by_name = await self.get_creator_names(payment)
+        return payment, party_name, created_by_name, updated_by_name, allocations
+
+    async def get_creator_names(self, payment: Payment) -> tuple[str | None, str | None]:
+        user_ids = [uid for uid in {payment.created_by, payment.updated_by} if uid is not None]
+        if not user_ids:
+            return None, None
+        result = await self._session.execute(select(User.id, User.name).where(User.id.in_(user_ids)))
+        names = dict(result.all())
+        return names.get(payment.created_by), names.get(payment.updated_by)
 
     async def get_payment_by_client_transaction_id(
         self, *, tenant_id: uuid.UUID, client_transaction_id: str

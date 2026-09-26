@@ -86,6 +86,8 @@ class EstimateListItem(BaseModel):
     is_expired_display: bool
     grand_total: str
     created_by: str | None
+    created_by_name: str | None
+    updated_by_name: str | None
     created_at: str
     updated_at: str
     row_version: int
@@ -105,6 +107,19 @@ class EstimateDetail(EstimateListItem):
     notes: str | None
     converted_at: str | None
     lines: list[EstimateLineItem]
+
+
+class EstimateAuditEvent(BaseModel):
+    id: str
+    action: str
+    actor_user_id: str | None
+    actor_name: str | None
+    occurred_at: str
+
+
+class EstimateAuditHistory(BaseModel):
+    estimate_id: str
+    events: list[EstimateAuditEvent]
 
 
 class ConversionResult(BaseModel):

@@ -72,6 +72,8 @@ class DeliveryChallanListItem(BaseModel):
     status: str
     total_quantity: str
     created_by: str | None
+    created_by_name: str | None = None
+    updated_by_name: str | None = None
     created_at: str
     updated_at: str
     row_version: int

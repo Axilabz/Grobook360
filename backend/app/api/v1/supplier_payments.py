@@ -62,7 +62,9 @@ async def _require_idempotency_key(idempotency_key: str | None) -> str:
     return idempotency_key
 
 
-def _to_list_item(payment: Payment, party_name: str) -> PaymentListItem:
+def _to_list_item(
+    payment: Payment, party_name: str, created_by_name: str | None = None, updated_by_name: str | None = None
+) -> PaymentListItem:
     return PaymentListItem(
         id=str(payment.id), payment_number=payment.payment_number, party_type=payment.party_type,
         customer_id=str(payment.customer_id) if payment.customer_id else None,
@@ -71,6 +73,7 @@ def _to_list_item(payment: Payment, party_name: str) -> PaymentListItem:
         amount=str(payment.amount), allocated_amount=str(payment.allocated_amount), unallocated_amount=str(payment.unallocated_amount),
         status=payment.status, cheque_status=payment.cheque_status,
         created_by=str(payment.created_by) if payment.created_by else None,
+        created_by_name=created_by_name, updated_by_name=updated_by_name,
         created_at=payment.created_at.isoformat(), updated_at=payment.updated_at.isoformat(), row_version=payment.row_version,
     )
 
@@ -89,10 +92,13 @@ async def _to_allocation_item(session: AsyncSession, allocation: PaymentAllocati
     )
 
 
-async def _to_detail(session: AsyncSession, payment: Payment, party_name: str, allocations: list[PaymentAllocation]) -> PaymentDetail:
+async def _to_detail(
+    session: AsyncSession, payment: Payment, party_name: str, allocations: list[PaymentAllocation],
+    created_by_name: str | None = None, updated_by_name: str | None = None,
+) -> PaymentDetail:
     allocation_items = [await _to_allocation_item(session, a) for a in allocations]
     return PaymentDetail(
-        **_to_list_item(payment, party_name).model_dump(),
+        **_to_list_item(payment, party_name, created_by_name, updated_by_name).model_dump(),
         reference_number=payment.reference_number, notes=payment.notes, client_transaction_id=payment.client_transaction_id,
         cheque_number=payment.cheque_number, cheque_date=payment.cheque_date.isoformat() if payment.cheque_date else None,
         cheque_bank_name=payment.cheque_bank_name, cleared_date=payment.cleared_date.isoformat() if payment.cleared_date else None,
@@ -117,7 +123,7 @@ async def list_payments(
     )
     total_pages = (result.total_items + page_size - 1) // page_size if result.total_items else 0
     return {
-        "data": [_to_list_item(p, name).model_dump() for p, name in result.items],
+        "data": [_to_list_item(p, name, cbn, ubn).model_dump() for p, name, cbn, ubn in result.items],
         "pagination": Pagination(page=page, page_size=page_size, total_items=result.total_items, total_pages=total_pages).model_dump(),
         "meta": _meta(),
     }
@@ -151,8 +157,8 @@ async def get_payment(
 ) -> dict:
     tenant_id = _require_tenant(context)
     service = PaymentService(session)
-    payment, party_name, allocations = await service.get_payment(tenant_id=tenant_id, payment_id=payment_id)
-    return {"data": (await _to_detail(session, payment, party_name, allocations)).model_dump(), "meta": _meta()}
+    payment, party_name, created_by_name, updated_by_name, allocations = await service.get_payment(tenant_id=tenant_id, payment_id=payment_id)
+    return {"data": (await _to_detail(session, payment, party_name, allocations, created_by_name, updated_by_name)).model_dump(), "meta": _meta()}
 
 
 async def _idempotent_post(

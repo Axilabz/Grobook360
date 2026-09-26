@@ -36,9 +36,24 @@ export interface EstimateListItem {
   is_expired_display: boolean;
   grand_total: string;
   created_by: string | null;
+  created_by_name: string | null;
+  updated_by_name: string | null;
   created_at: string;
   updated_at: string;
   row_version: number;
+}
+
+export interface EstimateAuditEvent {
+  id: string;
+  action: string;
+  actor_user_id: string | null;
+  actor_name: string | null;
+  occurred_at: string;
+}
+
+export interface EstimateAuditHistory {
+  estimate_id: string;
+  events: EstimateAuditEvent[];
 }
 
 export interface EstimateDetail extends EstimateListItem {
@@ -97,6 +112,10 @@ export async function listEstimates(params: ListEstimatesParams): Promise<ApiLis
 
 export async function getEstimate(estimateId: string): Promise<EstimateDetail> {
   return apiRequest<EstimateDetail>(`/sales/estimates/${estimateId}`);
+}
+
+export async function getEstimateAuditHistory(estimateId: string): Promise<EstimateAuditHistory> {
+  return apiRequest<EstimateAuditHistory>(`/sales/estimates/${estimateId}/audit-history`);
 }
 
 export interface CreateEstimatePayload {

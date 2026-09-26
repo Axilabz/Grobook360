@@ -240,27 +240,32 @@ const GstManagement: React.FC = () => {
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                       <tr>
-                        {['Document #', 'Date', 'Type', 'Party', 'GSTIN', 'Taxable', 'CGST', 'SGST', 'IGST', 'Total GST', ''].map((h) => (
-                          <th key={h} className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">{h}</th>
+                        {[
+                          { label: 'Document #', align: 'text-left' }, { label: 'Date', align: 'text-right' }, { label: 'Type', align: 'text-left' },
+                          { label: 'Party', align: 'text-left' }, { label: 'GSTIN', align: 'text-left' }, { label: 'Taxable', align: 'text-right' },
+                          { label: 'CGST', align: 'text-right' }, { label: 'SGST', align: 'text-right' }, { label: 'IGST', align: 'text-right' },
+                          { label: 'Total GST', align: 'text-right' }, { label: '', align: 'text-center' },
+                        ].map((h) => (
+                          <th key={h.label} className={`px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider ${h.align}`}>{h.label}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {items.map((t) => (
                         <tr key={t.id} className="hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
-                          <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                          <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap text-left">
                             <button onClick={() => setViewingId(t.id)} className="hover:text-[#0066ff] hover:underline">{t.source_number || '—'}</button>
                             {t.event_type === 'REVERSAL' && <span className="ml-1.5 text-[10px] text-amber-600">(reversal)</span>}
                           </td>
-                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{t.document_date}</td>
-                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{t.source_type.replace(/_/g, ' ')} · {t.classification}</td>
-                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{t.party_name || '—'}</td>
-                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{t.party_gstin || '—'}</td>
-                          <td className="px-6 py-4 text-[13px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{t.taxable_value}</td>
-                          <td className="px-6 py-4 text-[13px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{t.cgst_amount}</td>
-                          <td className="px-6 py-4 text-[13px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{t.sgst_amount}</td>
-                          <td className="px-6 py-4 text-[13px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{t.igst_amount}</td>
-                          <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap">₹{t.total_gst}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-right">{t.document_date}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{t.source_type.replace(/_/g, ' ')} · {t.classification}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{t.party_name || '—'}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{t.party_gstin || '—'}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{t.taxable_value}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{t.cgst_amount}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{t.sgst_amount}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{t.igst_amount}</td>
+                          <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap text-right">₹{t.total_gst}</td>
                           <td className="px-6 py-4 text-center whitespace-nowrap">
                             <button onClick={() => setViewingId(t.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View"><Eye size={16} /></button>
                           </td>

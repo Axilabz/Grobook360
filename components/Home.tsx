@@ -180,11 +180,12 @@ const Home: React.FC = () => {
       <div className="sticky top-16 z-[55] bg-white dark:bg-gray-950 -mx-4 md:-mx-6 px-4 md:px-6 py-4 -mt-4 md:-mt-6 mb-6 border-b border-gray-100 dark:border-gray-800 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 shadow-sm">
         <div>
           <h2 className="text-[22px] md:text-[26px] font-semibold text-gray-800 dark:text-gray-100 tracking-tight">Dashboard Overview</h2>
-          <p className="text-[13px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5">
-            {online ? <Wifi size={13} className="text-green-600" /> : <WifiOff size={13} className="text-amber-600" />}
-            {online ? 'Online' : 'Offline'}
-            {pendingSync > 0 && <span className="ml-1 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[11px] font-medium">{pendingSync} pending sync</span>}
-          </p>
+          {pendingSync > 0 && (
+            <p className="text-[13px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5 mt-0.5">
+              {online ? <Wifi size={13} className="text-green-600" /> : <WifiOff size={13} className="text-amber-600" />}
+              <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-[11px] font-medium">{pendingSync} pending sync</span>
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <select

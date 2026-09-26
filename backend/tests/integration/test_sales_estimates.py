@@ -69,7 +69,17 @@ async def _signup_and_login_owner(client, state_code: str = "33") -> dict:
 
     login_response = await client.post(LOGIN_ENDPOINT, json={"login_identifier": phone, "password": OWNER_PASSWORD})
     assert login_response.status_code == 200
-    return signup_response.json()["data"]
+    signup_data = signup_response.json()["data"]
+
+    # Sign-up doesn't collect a display name (FR-SU-04 only requires phone/
+    # email); set one here so created_by_name/updated_by_name resolution
+    # tests below have a real name to assert against, mirroring how an
+    # actual Owner would set their name post-signup.
+    owner_user_id = signup_data["owner_user_id"]
+    await client.patch(
+        f"{USERS_ENDPOINT}/{owner_user_id}", json={"name": "Test Owner", "expected_row_version": 1}
+    )
+    return signup_data
 
 
 async def _create_salesperson_and_login(client) -> None:
@@ -583,3 +593,91 @@ async def test_filter_by_status(client):
     response = await client.get(ESTIMATES_ENDPOINT, params={"status": "DRAFT"})
     assert response.status_code == 200
     assert all(item["status"] == "DRAFT" for item in response.json()["data"])
+
+
+# --- Created/updated-by name resolution ---
+
+
+async def test_list_and_detail_include_creator_name(client):
+    unit, product, customer = await _setup_basic(client)
+    created = await client.post(
+        ESTIMATES_ENDPOINT, json=_valid_estimate_payload(customer["id"], product["id"], unit["id"]), headers=_idem()
+    )
+    estimate = created.json()["data"]
+    assert estimate["created_by_name"] is not None
+
+    detail = await client.get(f"{ESTIMATES_ENDPOINT}/{estimate['id']}")
+    detail_data = detail.json()["data"]
+    assert detail_data["created_by_name"] == estimate["created_by_name"]
+
+    listed = await client.get(ESTIMATES_ENDPOINT)
+    listed_item = next(item for item in listed.json()["data"] if item["id"] == estimate["id"])
+    assert listed_item["created_by_name"] == estimate["created_by_name"]
+
+
+async def test_detail_updated_by_name_after_edit(client):
+    unit, product, customer = await _setup_basic(client)
+    created = await client.post(
+        ESTIMATES_ENDPOINT, json=_valid_estimate_payload(customer["id"], product["id"], unit["id"]), headers=_idem()
+    )
+    estimate = created.json()["data"]
+
+    updated = await client.patch(
+        f"{ESTIMATES_ENDPOINT}/{estimate['id']}",
+        json={"notes": "updated notes", "expected_row_version": estimate["row_version"]},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["data"]["updated_by_name"] is not None
+
+
+# --- Audit history ---
+
+
+async def test_audit_history_lists_events_in_order(client):
+    unit, product, customer = await _setup_basic(client)
+    estimate = await _create_and_send_estimate(client, unit, product, customer)
+    sent = await client.post(f"{ESTIMATES_ENDPOINT}/{estimate['id']}/send", json={"expected_row_version": estimate["row_version"]})
+    sent_data = sent.json()["data"]
+    await client.post(f"{ESTIMATES_ENDPOINT}/{estimate['id']}/accept", json={"expected_row_version": sent_data["row_version"]})
+
+    response = await client.get(f"{ESTIMATES_ENDPOINT}/{estimate['id']}/audit-history")
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["estimate_id"] == estimate["id"]
+    actions = [event["action"] for event in body["events"]]
+    assert actions == ["ESTIMATE_CREATED", "ESTIMATE_SENT", "ESTIMATE_ACCEPTED"]
+    for event in body["events"]:
+        assert event["actor_name"] is not None
+        assert event["occurred_at"] is not None
+
+
+async def test_audit_history_not_found_for_invalid_id(client):
+    await _signup_and_login_owner(client)
+    response = await client.get(f"{ESTIMATES_ENDPOINT}/{uuid.uuid4()}/audit-history")
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "EST-001"
+
+
+async def test_audit_history_tenant_isolation(client):
+    unit, product, customer = await _setup_basic(client)
+    created = await client.post(
+        ESTIMATES_ENDPOINT, json=_valid_estimate_payload(customer["id"], product["id"], unit["id"]), headers=_idem()
+    )
+    estimate_id = created.json()["data"]["id"]
+
+    await _signup_and_login_owner(client)
+    response = await client.get(f"{ESTIMATES_ENDPOINT}/{estimate_id}/audit-history")
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "EST-001"
+
+
+async def test_audit_history_requires_view_permission(client):
+    unit, product, customer = await _setup_basic(client)
+    created = await client.post(
+        ESTIMATES_ENDPOINT, json=_valid_estimate_payload(customer["id"], product["id"], unit["id"]), headers=_idem()
+    )
+    estimate_id = created.json()["data"]["id"]
+
+    await _create_salesperson_and_login(client)
+    response = await client.get(f"{ESTIMATES_ENDPOINT}/{estimate_id}/audit-history")
+    assert response.status_code == 200  # salesperson has sales_estimate.view

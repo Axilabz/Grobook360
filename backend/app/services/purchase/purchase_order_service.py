@@ -23,6 +23,7 @@ from decimal import Decimal
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.concurrency import check_row_version
 from app.core.error_codes import PO_INVALID_STATUS, PO_NOT_FOUND
@@ -44,6 +45,7 @@ from app.models.purchase_order_line import PurchaseOrderLine
 from app.models.supplier import Supplier
 from app.models.tenant import Tenant
 from app.models.unit_of_measure import UnitOfMeasure
+from app.models.user import User
 from app.schemas.purchase import PurchaseOrderLineInput
 from app.services.audit.audit_service import AuditService
 from app.services.purchase.purchase_validation_service import (
@@ -60,7 +62,8 @@ from app.services.sales.gst_calculation_service import (
 
 @dataclass(frozen=True)
 class PurchaseOrderPage:
-    items: list[tuple[PurchaseOrder, str, Decimal, Decimal, Decimal]]  # (order, supplier_name, ordered, received, remaining)
+    # (order, supplier_name, ordered, received, remaining, created_by_name, updated_by_name)
+    items: list[tuple[PurchaseOrder, str, Decimal, Decimal, Decimal, str | None, str | None]]
     total_items: int
 
 
@@ -305,9 +308,13 @@ class PurchaseOrderService:
         self, *, tenant_id: uuid.UUID, page: int, page_size: int, search: str | None, status_filter: str | None,
         supplier_id: uuid.UUID | None, date_from: date | None, date_to: date | None,
     ) -> PurchaseOrderPage:
+        creator = aliased(User)
+        updater = aliased(User)
         base = (
-            select(PurchaseOrder, Supplier.name)
+            select(PurchaseOrder, Supplier.name, creator.name, updater.name)
             .join(Supplier, Supplier.id == PurchaseOrder.supplier_id)
+            .outerjoin(creator, creator.id == PurchaseOrder.created_by)
+            .outerjoin(updater, updater.id == PurchaseOrder.updated_by)
             .where(PurchaseOrder.tenant_id == tenant_id)
         )
         if search:
@@ -332,7 +339,8 @@ class PurchaseOrderService:
         zero = QuantityTotals(ordered=Decimal("0"), received=Decimal("0"), remaining=Decimal("0"))
         items = [
             (row[0], row[1], totals_by_order.get(row[0].id, zero).ordered,
-             totals_by_order.get(row[0].id, zero).received, totals_by_order.get(row[0].id, zero).remaining)
+             totals_by_order.get(row[0].id, zero).received, totals_by_order.get(row[0].id, zero).remaining,
+             row[2], row[3])
             for row in rows
         ]
         return PurchaseOrderPage(items=items, total_items=total_items)
@@ -354,6 +362,20 @@ class PurchaseOrderService:
     ) -> tuple[PurchaseOrder, str, list[tuple[PurchaseOrderLine, UnitOfMeasure]], QuantityTotals]:
         order, supplier_name, lines = await self._order_and_lines(tenant_id, order_id)
         return order, supplier_name, lines, self.totals_from_lines(lines)
+
+    async def get_creator_names(self, order: PurchaseOrder) -> tuple[str | None, str | None]:
+        """Resolves `created_by`/`updated_by` display names for a single
+        already-fetched order — kept separate from `get_order`'s own tuple
+        shape since that method is shared by GoodsReceiptService/
+        PurchaseInvoiceService and widening it would ripple through every
+        caller; this is a narrow, additive lookup used only by this
+        router's own list/detail responses."""
+        user_ids = [uid for uid in {order.created_by, order.updated_by} if uid is not None]
+        if not user_ids:
+            return None, None
+        result = await self._session.execute(select(User.id, User.name).where(User.id.in_(user_ids)))
+        names = dict(result.all())
+        return names.get(order.created_by), names.get(order.updated_by)
 
     # --- related documents / receiving summary / audit history (PROMPT-020) ---
 

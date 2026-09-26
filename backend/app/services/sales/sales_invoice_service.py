@@ -174,7 +174,7 @@ class SalesInvoiceService:
         self, *, tenant_id: uuid.UUID, challan_id: uuid.UUID
     ) -> tuple[DeliveryChallan, str, str, list[tuple[DeliveryChallanLine, UnitOfMeasure, SalesOrderLine]]]:
         dc_service = DeliveryChallanService(self._session)
-        challan, customer_name, so_number, dc_lines = await dc_service.get_challan(
+        challan, customer_name, so_number, _created_by_name, _updated_by_name, dc_lines = await dc_service.get_challan(
             tenant_id=tenant_id, challan_id=challan_id
         )
 

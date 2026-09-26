@@ -97,7 +97,13 @@ def _to_unit_ref(unit: UnitOfMeasure) -> UnitRef:
     return UnitRef(id=str(unit.id), code=unit.code, name=unit.name)
 
 
-def _to_list_item(note: CreditDebitNote, customer_name: str, invoice_number: str) -> CreditDebitNoteListItem:
+def _to_list_item(
+    note: CreditDebitNote,
+    customer_name: str,
+    invoice_number: str,
+    created_by_name: str | None = None,
+    updated_by_name: str | None = None,
+) -> CreditDebitNoteListItem:
     return CreditDebitNoteListItem(
         id=str(note.id),
         note_number=note.note_number,
@@ -112,6 +118,8 @@ def _to_list_item(note: CreditDebitNote, customer_name: str, invoice_number: str
         grand_total=str(note.grand_total),
         tax_total=str(note.tax_total),
         created_by=str(note.created_by) if note.created_by else None,
+        created_by_name=created_by_name,
+        updated_by_name=updated_by_name,
         created_at=note.created_at.isoformat(),
         updated_at=note.updated_at.isoformat(),
         row_version=note.row_version,
@@ -144,9 +152,11 @@ def _to_detail(
     customer_name: str,
     invoice_number: str,
     lines: list[tuple[CreditDebitNoteLine, UnitOfMeasure]],
+    created_by_name: str | None = None,
+    updated_by_name: str | None = None,
 ) -> CreditDebitNoteDetail:
     return CreditDebitNoteDetail(
-        **_to_list_item(note, customer_name, invoice_number).model_dump(),
+        **_to_list_item(note, customer_name, invoice_number, created_by_name, updated_by_name).model_dump(),
         customer_gstin=note.customer_gstin,
         billing_address=note.billing_address,
         shipping_address=note.shipping_address,
@@ -208,7 +218,7 @@ async def list_notes(
 
     total_pages = (result.total_items + page_size - 1) // page_size if result.total_items else 0
     return {
-        "data": [_to_list_item(note, name, inv_num).model_dump() for note, name, inv_num in result.items],
+        "data": [_to_list_item(note, name, inv_num, cbn, ubn).model_dump() for note, name, inv_num, cbn, ubn in result.items],
         "pagination": Pagination(page=page, page_size=page_size, total_items=result.total_items, total_pages=total_pages).model_dump(),
         "meta": _meta(),
     }
@@ -222,9 +232,9 @@ async def get_note(
 ) -> dict:
     tenant_id = _require_tenant(context)
     service = CreditDebitNoteService(session)
-    note, customer_name, invoice_number, lines = await service.get_note(tenant_id=tenant_id, note_id=note_id)
+    note, customer_name, invoice_number, created_by_name, updated_by_name, lines = await service.get_note(tenant_id=tenant_id, note_id=note_id)
     _require_note_permission(context, "view", note.note_type)
-    return {"data": _to_detail(note, customer_name, invoice_number, lines).model_dump(), "meta": _meta()}
+    return {"data": _to_detail(note, customer_name, invoice_number, lines, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 async def _idempotent_post(
@@ -306,7 +316,7 @@ async def update_note(
     client_ip = request.client.host if request.client else "unknown"
 
     service = CreditDebitNoteService(session)
-    existing, _name, _inv, _lines = await service.get_note(tenant_id=tenant_id, note_id=note_id)
+    existing, _name, _inv, _cbn, _ubn, _lines = await service.get_note(tenant_id=tenant_id, note_id=note_id)
     _require_note_permission(context, "edit", existing.note_type)
 
     note, customer_name, invoice_number, lines = await service.update_note(
@@ -337,7 +347,7 @@ async def post_note(
     key = await _require_idempotency_key(idempotency_key)
 
     service = CreditDebitNoteService(session)
-    existing, _name, _inv, _lines = await service.get_note(tenant_id=tenant_id, note_id=note_id)
+    existing, _name, _inv, _cbn, _ubn, _lines = await service.get_note(tenant_id=tenant_id, note_id=note_id)
     _require_note_permission(context, "post", existing.note_type)
 
     async def _execute() -> dict:
@@ -371,7 +381,7 @@ async def cancel_note(
 ) -> dict:
     tenant_id = _require_tenant(context)
     service = CreditDebitNoteService(session)
-    existing, _name, _inv, _lines = await service.get_note(tenant_id=tenant_id, note_id=note_id)
+    existing, _name, _inv, _cbn, _ubn, _lines = await service.get_note(tenant_id=tenant_id, note_id=note_id)
     _require_note_permission(context, "cancel", existing.note_type)
 
     note = await service.cancel_note(
@@ -382,5 +392,5 @@ async def cancel_note(
         ip_address=request.client.host if request.client else "unknown",
     )
     await session.commit()
-    _, customer_name, invoice_number, lines = await service.get_note(tenant_id=tenant_id, note_id=note.id)
-    return {"data": _to_detail(note, customer_name, invoice_number, lines).model_dump(), "meta": _meta()}
+    _, customer_name, invoice_number, created_by_name, updated_by_name, lines = await service.get_note(tenant_id=tenant_id, note_id=note.id)
+    return {"data": _to_detail(note, customer_name, invoice_number, lines, created_by_name, updated_by_name).model_dump(), "meta": _meta()}

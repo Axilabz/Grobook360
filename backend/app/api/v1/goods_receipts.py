@@ -70,7 +70,10 @@ def _to_unit_ref(unit: UnitOfMeasure) -> UnitRef:
     return UnitRef(id=str(unit.id), code=unit.code, name=unit.name)
 
 
-def _to_list_item(receipt: GoodsReceipt, supplier_name: str, po_number: str | None) -> GoodsReceiptListItem:
+def _to_list_item(
+    receipt: GoodsReceipt, supplier_name: str, po_number: str | None,
+    created_by_name: str | None = None, updated_by_name: str | None = None,
+) -> GoodsReceiptListItem:
     return GoodsReceiptListItem(
         id=str(receipt.id), grn_number=receipt.grn_number, document_date=receipt.document_date.isoformat(),
         supplier_id=str(receipt.supplier_id), supplier_name=supplier_name,
@@ -78,6 +81,7 @@ def _to_list_item(receipt: GoodsReceipt, supplier_name: str, po_number: str | No
         source_purchase_order_id=str(receipt.source_purchase_order_id) if receipt.source_purchase_order_id else None,
         source_purchase_order_number=po_number, status=receipt.status, total_quantity=str(receipt.total_quantity),
         grand_total=str(receipt.grand_total), created_by=str(receipt.created_by) if receipt.created_by else None,
+        created_by_name=created_by_name, updated_by_name=updated_by_name,
         created_at=receipt.created_at.isoformat(), updated_at=receipt.updated_at.isoformat(), row_version=receipt.row_version,
     )
 
@@ -100,10 +104,11 @@ def _to_line_item(
 def _to_detail(
     receipt: GoodsReceipt, supplier_name: str, po_number: str | None, lines: list[tuple[GoodsReceiptLine, UnitOfMeasure]],
     stock_info: dict[uuid.UUID, tuple[uuid.UUID | None, bool]] | None = None,
+    created_by_name: str | None = None, updated_by_name: str | None = None,
 ) -> GoodsReceiptDetail:
     stock_info = stock_info or {}
     return GoodsReceiptDetail(
-        **_to_list_item(receipt, supplier_name, po_number).model_dump(), notes=receipt.notes, subtotal=str(receipt.subtotal),
+        **_to_list_item(receipt, supplier_name, po_number, created_by_name, updated_by_name).model_dump(), notes=receipt.notes, subtotal=str(receipt.subtotal),
         discount_total=str(receipt.discount_total), taxable_total=str(receipt.taxable_total), cgst_total=str(receipt.cgst_total),
         sgst_total=str(receipt.sgst_total), igst_total=str(receipt.igst_total), tax_total=str(receipt.tax_total),
         lines=[_to_line_item(line, uom, stock_info.get(line.id)) for line, uom in lines],
@@ -127,7 +132,7 @@ async def list_receipts(
     )
     total_pages = (result.total_items + page_size - 1) // page_size if result.total_items else 0
     return {
-        "data": [_to_list_item(r, name, po_num).model_dump() for r, name, po_num in result.items],
+        "data": [_to_list_item(r, name, po_num, cbn, ubn).model_dump() for r, name, po_num, cbn, ubn in result.items],
         "pagination": Pagination(page=page, page_size=page_size, total_items=result.total_items, total_pages=total_pages).model_dump(),
         "meta": _meta(),
     }
@@ -140,7 +145,8 @@ async def get_receipt(
     tenant_id = _require_tenant(context)
     service = GoodsReceiptService(session)
     receipt, supplier_name, po_number, lines, stock_info = await service.get_receipt(tenant_id=tenant_id, receipt_id=receipt_id)
-    return {"data": _to_detail(receipt, supplier_name, po_number, lines, stock_info).model_dump(), "meta": _meta()}
+    created_by_name, updated_by_name = await service.get_creator_names(receipt)
+    return {"data": _to_detail(receipt, supplier_name, po_number, lines, stock_info, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 async def _idempotent_post(
@@ -238,7 +244,8 @@ async def cancel_receipt(
     )
     await session.commit()
     receipt, supplier_name, po_number, lines, stock_info = await service.get_receipt(tenant_id=tenant_id, receipt_id=receipt_id)
-    return {"data": _to_detail(receipt, supplier_name, po_number, lines, stock_info).model_dump(), "meta": _meta()}
+    created_by_name, updated_by_name = await service.get_creator_names(receipt)
+    return {"data": _to_detail(receipt, supplier_name, po_number, lines, stock_info, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 @router.get("/{receipt_id}/invoice-eligibility")

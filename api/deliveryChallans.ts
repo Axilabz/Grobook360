@@ -27,6 +27,8 @@ export interface DeliveryChallanListItem {
   status: string;
   total_quantity: string;
   created_by: string | null;
+  created_by_name: string | null;
+  updated_by_name: string | null;
   created_at: string;
   updated_at: string;
   row_version: number;

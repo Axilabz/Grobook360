@@ -37,6 +37,8 @@ from app.schemas.sales_estimate import (
     ConversionResult,
     CreateEstimateRequest,
     EstimateActionRequest,
+    EstimateAuditEvent,
+    EstimateAuditHistory,
     EstimateDetail,
     EstimateLineItem,
     EstimateListItem,
@@ -70,7 +72,7 @@ def _to_unit_ref(unit: UnitOfMeasure) -> UnitRef:
     return UnitRef(id=str(unit.id), code=unit.code, name=unit.name)
 
 
-def _to_list_item(estimate: SalesEstimate, customer_name: str) -> EstimateListItem:
+def _to_list_item(estimate: SalesEstimate, customer_name: str, created_by_name: str | None = None, updated_by_name: str | None = None) -> EstimateListItem:
     is_expired_display = bool(
         estimate.valid_until_date
         and estimate.valid_until_date < date.today()
@@ -87,6 +89,8 @@ def _to_list_item(estimate: SalesEstimate, customer_name: str) -> EstimateListIt
         is_expired_display=is_expired_display,
         grand_total=str(estimate.grand_total),
         created_by=str(estimate.created_by) if estimate.created_by else None,
+        created_by_name=created_by_name,
+        updated_by_name=updated_by_name,
         created_at=estimate.created_at.isoformat(),
         updated_at=estimate.updated_at.isoformat(),
         row_version=estimate.row_version,
@@ -114,10 +118,11 @@ def _to_line_item(line: SalesEstimateLine, uom: UnitOfMeasure) -> EstimateLineIt
 
 
 def _to_detail(
-    estimate: SalesEstimate, customer_name: str, lines: list[tuple[SalesEstimateLine, UnitOfMeasure]]
+    estimate: SalesEstimate, customer_name: str, lines: list[tuple[SalesEstimateLine, UnitOfMeasure]],
+    created_by_name: str | None = None, updated_by_name: str | None = None,
 ) -> EstimateDetail:
     return EstimateDetail(
-        **_to_list_item(estimate, customer_name).model_dump(),
+        **_to_list_item(estimate, customer_name, created_by_name, updated_by_name).model_dump(),
         customer_gstin=estimate.customer_gstin,
         billing_address=estimate.billing_address,
         place_of_supply_state_code=estimate.place_of_supply_state_code,
@@ -165,7 +170,7 @@ async def list_estimates(
 
     total_pages = (result.total_items + page_size - 1) // page_size if result.total_items else 0
     return {
-        "data": [_to_list_item(e, name).model_dump() for e, name in result.items],
+        "data": [_to_list_item(e, name, created_name, updated_name).model_dump() for e, name, created_name, updated_name in result.items],
         "pagination": Pagination(page=page, page_size=page_size, total_items=result.total_items, total_pages=total_pages).model_dump(),
         "meta": _meta(),
     }
@@ -179,9 +184,35 @@ async def get_estimate(
 ) -> dict:
     tenant_id = _require_tenant(context)
     service = EstimateService(session)
-    estimate, customer_name, lines = await service.get_estimate(tenant_id=tenant_id, estimate_id=estimate_id)
+    estimate, customer_name, created_by_name, updated_by_name, lines = await service.get_estimate(tenant_id=tenant_id, estimate_id=estimate_id)
     await session.commit()  # persist any lazy expiry transition
-    return {"data": _to_detail(estimate, customer_name, lines).model_dump(), "meta": _meta()}
+    return {"data": _to_detail(estimate, customer_name, lines, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
+
+
+@router.get("/{estimate_id}/audit-history")
+async def get_audit_history(
+    estimate_id: uuid.UUID,
+    context: AuthenticatedContext = Depends(require_permission(SALES_ESTIMATE_VIEW)),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """The audit trail (created/sent/accepted/rejected/cancelled/
+    converted, who + when) shown on the Estimate detail screen — mirrors
+    Purchase Order's own established `/audit-history` pattern."""
+    tenant_id = _require_tenant(context)
+    service = EstimateService(session)
+    events = await service.get_audit_history(tenant_id=tenant_id, estimate_id=estimate_id)
+    result = EstimateAuditHistory(
+        estimate_id=str(estimate_id),
+        events=[
+            EstimateAuditEvent(
+                id=str(event.id), action=event.action,
+                actor_user_id=str(event.actor_user_id) if event.actor_user_id else None,
+                actor_name=actor_name, occurred_at=event.occurred_at.isoformat(),
+            )
+            for event, actor_name in events
+        ],
+    )
+    return {"data": result.model_dump(), "meta": _meta()}
 
 
 async def _idempotent_post(
@@ -230,7 +261,8 @@ async def create_estimate(
             line_inputs=payload.lines,
             ip_address=request.client.host if request.client else "unknown",
         )
-        return {"data": _to_detail(estimate, customer_name, lines).model_dump(), "meta": _meta()}
+        _, _, created_by_name, updated_by_name, _ = await service.get_estimate(tenant_id=tenant_id, estimate_id=estimate.id)
+        return {"data": _to_detail(estimate, customer_name, lines, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
     return await _idempotent_post(
         session=session,
@@ -266,8 +298,9 @@ async def update_estimate(
         line_inputs=payload.lines,
         ip_address=client_ip,
     )
+    _, _, created_by_name, updated_by_name, _ = await service.get_estimate(tenant_id=tenant_id, estimate_id=estimate.id)
     await session.commit()
-    return {"data": _to_detail(estimate, customer_name, lines).model_dump(), "meta": _meta()}
+    return {"data": _to_detail(estimate, customer_name, lines, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 async def _run_transition(
@@ -284,8 +317,8 @@ async def _run_transition(
         ip_address=request.client.host if request.client else "unknown",
     )
     await session.commit()
-    _, customer_name, lines = await service.get_estimate(tenant_id=tenant_id, estimate_id=estimate.id)
-    return {"data": _to_detail(estimate, customer_name, lines).model_dump(), "meta": _meta()}
+    _, customer_name, created_by_name, updated_by_name, lines = await service.get_estimate(tenant_id=tenant_id, estimate_id=estimate.id)
+    return {"data": _to_detail(estimate, customer_name, lines, created_by_name, updated_by_name).model_dump(), "meta": _meta()}
 
 
 @router.post("/{estimate_id}/send")

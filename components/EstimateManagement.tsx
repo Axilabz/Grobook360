@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Search, Plus, X, Loader2, AlertTriangle, FileText, Send, CheckCircle2, XCircle,
-  Ban, ArrowRightCircle, ChevronLeft, ChevronRight, Eye, Trash2,
+  Search, Plus, X, Loader2, AlertTriangle, FileText, Send,
+  Ban, ArrowRightCircle, ChevronLeft, ChevronRight, Eye, Trash2, History,
 } from 'lucide-react';
 import Input from './Input';
 import { useAuth } from '../context/AuthContext';
@@ -11,12 +11,12 @@ import { ApiError } from '../api/client';
 import {
   EstimateListItem,
   EstimateDetail,
+  EstimateAuditEvent,
   listEstimates,
   getEstimate,
+  getEstimateAuditHistory,
   createEstimate,
   sendEstimate,
-  acceptEstimate,
-  rejectEstimate,
   cancelEstimate,
   convertEstimate,
 } from '../api/salesEstimates';
@@ -34,6 +34,30 @@ const STATUS_BADGE: Record<string, string> = {
   CONVERTED: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
 };
 
+const ACTION_HISTORY_LABEL: Record<string, string> = {
+  ESTIMATE_CREATED: 'Created', ESTIMATE_UPDATED: 'Updated', ESTIMATE_SENT: 'Sent',
+  ESTIMATE_ACCEPTED: 'Accepted', ESTIMATE_REJECTED: 'Rejected', ESTIMATE_CANCELLED: 'Cancelled',
+  ESTIMATE_CONVERTED: 'Converted to Sales Order',
+};
+
+// A line's own gst_rate is the FULL rate (CGST+SGST split it in half for
+// intra-state, IGST uses it whole for inter-state) — only shown when every
+// line shares one rate, since a mixed-rate estimate has no single percentage
+// to display next to the header-level total.
+function uniformGstRate(lines: EstimateDetail['lines']): number | null {
+  if (lines.length === 0) return null;
+  const first = Number(lines[0].gst_rate);
+  return lines.every((l) => Number(l.gst_rate) === first) ? first : null;
+}
+function halfGstRateLabel(lines: EstimateDetail['lines']): string {
+  const rate = uniformGstRate(lines);
+  return rate === null ? '' : ` (${(rate / 2).toFixed(rate % 2 === 0 ? 0 : 1)}%)`;
+}
+function fullGstRateLabel(lines: EstimateDetail['lines']): string {
+  const rate = uniformGstRate(lines);
+  return rate === null ? '' : ` (${rate}%)`;
+}
+
 // Mirrors the backend's own state machine (app/services/sales/estimate_service.py)
 // for UX only — the server independently enforces every transition.
 const ACTION_ALLOWED_FROM: Record<string, string[]> = {
@@ -50,8 +74,6 @@ const EstimateManagement: React.FC = () => {
   const canCreate = hasPermission('sales_estimate.create');
   const canEdit = hasPermission('sales_estimate.edit');
   const canSend = hasPermission('sales_estimate.send');
-  const canAccept = hasPermission('sales_estimate.accept');
-  const canReject = hasPermission('sales_estimate.reject');
   const canCancel = hasPermission('sales_estimate.cancel');
   const canConvert = hasPermission('sales_estimate.convert');
 
@@ -133,26 +155,27 @@ const EstimateManagement: React.FC = () => {
               <table className="w-full text-left border-collapse">
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    {['Estimate #', 'Date', 'Customer', 'Valid Until', 'Amount', 'Status', 'Created By', 'Actions'].map((h) => (
-                      <th key={h} className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">{h}</th>
+                    {/* Header labels are center-aligned; row cells below stay left/right/center per column type (text/date-number/icon) */}
+                    {['Estimate #', 'Date', 'Customer', 'Valid Until', 'Amount', 'Status', 'Created By', 'Actions'].map((label) => (
+                      <th key={label} className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider text-center">{label}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {items.map((est) => (
                     <tr key={est.id} className="hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
-                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                      <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap text-left">
                         <button onClick={() => setViewingId(est.id)} className="hover:text-[#0066ff] hover:underline">{est.estimate_number}</button>
                       </td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{est.document_date}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">{est.customer_name}</td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{est.valid_until_date || '—'}</td>
-                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{est.grand_total}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-right">{est.document_date}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-left">{est.customer_name}</td>
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-right">{est.valid_until_date || '—'}</td>
+                      <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{est.grand_total}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-left">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[est.status]}`}>{est.status}</span>
                         {est.is_expired_display && est.status !== 'EXPIRED' && <AlertTriangle size={12} className="inline ml-1.5 text-amber-500" />}
                       </td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{est.created_by ? est.created_by.slice(0, 8) : '—'}</td>
+                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{est.created_by_name || '—'}</td>
                       <td className="px-6 py-4 text-center whitespace-nowrap">
                         <button onClick={() => setViewingId(est.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View">
                           <Eye size={16} />
@@ -200,7 +223,7 @@ const EstimateManagement: React.FC = () => {
           estimateId={viewingId}
           onClose={() => setViewingId(null)}
           onChanged={fetchEstimates}
-          permissions={{ canSend, canAccept, canReject, canCancel, canConvert }}
+          permissions={{ canSend, canCancel, canConvert }}
         />
       )}
     </div>
@@ -209,8 +232,9 @@ const EstimateManagement: React.FC = () => {
 
 const EstimateFormModal: React.FC<{ onClose: () => void; onSaved: () => void }> = ({ onClose, onSaved }) => {
   const { showToast } = useToast();
+  const today = new Date().toISOString().slice(0, 10);
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [documentDate, setDocumentDate] = useState(today);
   const [validUntilDate, setValidUntilDate] = useState('');
   const [notes, setNotes] = useState('');
   const [lines, setLines] = useState<SalesLineDraft[]>([]);
@@ -273,8 +297,21 @@ const EstimateFormModal: React.FC<{ onClose: () => void; onSaved: () => void }> 
           <CustomerSelector value={customer} onChange={setCustomer} />
 
           <div className="grid grid-cols-2 gap-x-4">
-            <Input label="Estimate Date" type="date" value={documentDate} onChange={(e) => setDocumentDate(e.target.value)} />
-            <Input label="Valid Until (Optional)" type="date" value={validUntilDate} onChange={(e) => setValidUntilDate(e.target.value)} />
+            <Input
+              label="Estimate Date" type="date" value={documentDate} min={today}
+              onChange={(e) => {
+                const next = e.target.value;
+                setDocumentDate(next);
+                // Valid Until can never be before the (possibly just-changed)
+                // Estimate Date — clear it rather than silently leaving a
+                // now-invalid value in place.
+                if (validUntilDate && validUntilDate < next) setValidUntilDate('');
+              }}
+            />
+            <Input
+              label="Valid Until (Optional)" type="date" value={validUntilDate} min={documentDate || today}
+              onChange={(e) => setValidUntilDate(e.target.value)}
+            />
           </div>
 
           <h4 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3 mt-2">Product Lines</h4>
@@ -314,7 +351,7 @@ const EstimateFormModal: React.FC<{ onClose: () => void; onSaved: () => void }> 
 };
 
 interface DetailPermissions {
-  canSend: boolean; canAccept: boolean; canReject: boolean; canCancel: boolean; canConvert: boolean;
+  canSend: boolean; canCancel: boolean; canConvert: boolean;
 }
 
 const EstimateDetailModal: React.FC<{ estimateId: string; onClose: () => void; onChanged: () => void; permissions: DetailPermissions }> = ({
@@ -323,8 +360,10 @@ const EstimateDetailModal: React.FC<{ estimateId: string; onClose: () => void; o
   const { showToast } = useToast();
   const [estimate, setEstimate] = useState<EstimateDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [confirmAction, setConfirmAction] = useState<'reject' | 'cancel' | 'convert' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'cancel' | 'convert' | null>(null);
   const [isActing, setIsActing] = useState(false);
+  const [history, setHistory] = useState<EstimateAuditEvent[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -339,7 +378,21 @@ const EstimateDetailModal: React.FC<{ estimateId: string; onClose: () => void; o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estimateId]);
 
-  useEffect(() => { load(); }, [load]);
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const data = await getEstimateAuditHistory(estimateId);
+      setHistory(data.events);
+    } catch {
+      // Non-critical section — a failed fetch here shouldn't block the
+      // rest of the estimate from being usable.
+    } finally {
+      setHistoryLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [estimateId]);
+
+  useEffect(() => { load(); loadHistory(); }, [load, loadHistory]);
 
   const runAction = async (fn: () => Promise<unknown>, successMsg: string) => {
     setIsActing(true);
@@ -347,6 +400,7 @@ const EstimateDetailModal: React.FC<{ estimateId: string; onClose: () => void; o
       await fn();
       showToast(successMsg, 'success');
       await load();
+      await loadHistory();
       onChanged();
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
@@ -362,6 +416,7 @@ const EstimateDetailModal: React.FC<{ estimateId: string; onClose: () => void; o
       const result = await convertEstimate(estimate.id, estimate.row_version);
       showToast(result.message, 'success');
       await load();
+      await loadHistory();
       onChanged();
     } catch (err) {
       showToast(err instanceof ApiError ? err.message : 'Something went wrong.', 'error');
@@ -429,9 +484,9 @@ const EstimateDetailModal: React.FC<{ estimateId: string; onClose: () => void; o
             <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>Subtotal</span><span>₹{estimate.subtotal}</span></div>
             <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>Discount</span><span>−₹{estimate.discount_total}</span></div>
             <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>Taxable Value</span><span>₹{estimate.taxable_total}</span></div>
-            <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>CGST</span><span>₹{estimate.cgst_total}</span></div>
-            <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>SGST</span><span>₹{estimate.sgst_total}</span></div>
-            <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>IGST</span><span>₹{estimate.igst_total}</span></div>
+            <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>CGST{Number(estimate.cgst_total) > 0 ? halfGstRateLabel(estimate.lines) : ''}</span><span>₹{estimate.cgst_total}</span></div>
+            <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>SGST{Number(estimate.sgst_total) > 0 ? halfGstRateLabel(estimate.lines) : ''}</span><span>₹{estimate.sgst_total}</span></div>
+            <div className="flex justify-between text-gray-500 dark:text-gray-400"><span>IGST{Number(estimate.igst_total) > 0 ? fullGstRateLabel(estimate.lines) : ''}</span><span>₹{estimate.igst_total}</span></div>
             <div className="flex justify-between font-semibold text-gray-900 dark:text-white pt-1 border-t border-gray-100 dark:border-gray-700">
               <span>Grand Total</span><span>₹{estimate.grand_total}</span>
             </div>
@@ -439,20 +494,30 @@ const EstimateDetailModal: React.FC<{ estimateId: string; onClose: () => void; o
 
           {estimate.notes && <p className="text-gray-600 dark:text-gray-300"><span className="text-gray-400 text-[12px] uppercase block">Notes</span>{estimate.notes}</p>}
 
+          <div>
+            <p className="text-gray-400 text-[12px] uppercase font-semibold flex items-center gap-1.5 mb-2"><History size={13} /> Action History</p>
+            {historyLoading ? (
+              <p className="text-[13px] text-gray-400">Loading…</p>
+            ) : history.length === 0 ? (
+              <p className="text-[13px] text-gray-400">No history recorded.</p>
+            ) : (
+              <div className="space-y-2">
+                {history.map((event) => (
+                  <div key={event.id} className="flex items-start justify-between gap-3 text-[13px] border-b border-gray-50 dark:border-gray-800 pb-2 last:border-0">
+                    <span className="text-gray-700 dark:text-gray-300 font-medium">{ACTION_HISTORY_LABEL[event.action] || event.action}</span>
+                    <span className="text-gray-500 dark:text-gray-400 text-right">
+                      {event.actor_name || 'System'} · {new Date(event.occurred_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-wrap gap-2 pt-2">
             {permissions.canSend && allowed('send') && (
               <button disabled={isActing} onClick={() => runAction(() => sendEstimate(estimate.id, estimate.row_version), 'Estimate sent.')} className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-blue-300 dark:border-blue-800 text-blue-600 text-[13px] font-medium">
                 <Send size={14} /> Send
-              </button>
-            )}
-            {permissions.canAccept && allowed('accept') && (
-              <button disabled={isActing} onClick={() => runAction(() => acceptEstimate(estimate.id, estimate.row_version), 'Estimate accepted.')} className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-green-300 dark:border-green-800 text-green-600 text-[13px] font-medium">
-                <CheckCircle2 size={14} /> Accept
-              </button>
-            )}
-            {permissions.canReject && allowed('reject') && (
-              <button disabled={isActing} onClick={() => setConfirmAction('reject')} className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-red-300 dark:border-red-800 text-red-600 text-[13px] font-medium">
-                <XCircle size={14} /> Reject
               </button>
             )}
             {permissions.canCancel && allowed('cancel') && (
@@ -475,23 +540,20 @@ const EstimateDetailModal: React.FC<{ estimateId: string; onClose: () => void; o
             <div className="flex items-center gap-3 mb-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30 shrink-0"><AlertTriangle size={20} className="text-amber-600 dark:text-amber-400" /></div>
               <h3 className="text-[17px] font-semibold text-gray-900 dark:text-white">
-                {confirmAction === 'convert' ? 'Convert to Sales Order' : confirmAction === 'cancel' ? 'Cancel Estimate' : 'Reject Estimate'}
+                {confirmAction === 'convert' ? 'Convert to Sales Order' : 'Cancel Estimate'}
               </h3>
             </div>
             <p className="text-[14px] text-gray-600 dark:text-gray-300 mb-6">
               {confirmAction === 'convert'
                 ? 'This will create a new Sales Order from this estimate and mark the estimate as converted. This action cannot be undone.'
-                : confirmAction === 'cancel'
-                ? 'This estimate will be cancelled and can no longer be actioned.'
-                : 'This estimate will be marked as rejected by the customer.'}
+                : 'This estimate will be cancelled and can no longer be actioned.'}
             </p>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => setConfirmAction(null)} className="py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-[14px] font-medium">Cancel</button>
               <button
                 onClick={() => {
                   if (confirmAction === 'convert') runConvert();
-                  else if (confirmAction === 'cancel') runAction(() => cancelEstimate(estimate.id, estimate.row_version), 'Estimate cancelled.');
-                  else runAction(() => rejectEstimate(estimate.id, estimate.row_version), 'Estimate rejected.');
+                  else runAction(() => cancelEstimate(estimate.id, estimate.row_version), 'Estimate cancelled.');
                 }}
                 className="py-2.5 rounded-lg bg-[#0066ff] hover:bg-blue-700 text-white text-[14px] font-medium"
               >

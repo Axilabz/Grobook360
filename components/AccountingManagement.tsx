@@ -143,26 +143,31 @@ const AccountingManagement: React.FC = () => {
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                       <tr>
-                        {['Journal #', 'Date', 'Posting Date', 'Source', 'Source #', 'Description', 'Debit', 'Credit', 'Status', 'Actions'].map((h) => (
-                          <th key={h} className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">{h}</th>
+                        {[
+                          { label: 'Journal #', align: 'text-left' }, { label: 'Date', align: 'text-right' }, { label: 'Posting Date', align: 'text-right' },
+                          { label: 'Source', align: 'text-left' }, { label: 'Source #', align: 'text-left' }, { label: 'Description', align: 'text-left' },
+                          { label: 'Debit', align: 'text-right' }, { label: 'Credit', align: 'text-right' }, { label: 'Status', align: 'text-left' },
+                          { label: 'Actions', align: 'text-center' },
+                        ].map((h) => (
+                          <th key={h.label} className={`px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider ${h.align}`}>{h.label}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {items.map((j) => (
                         <tr key={j.id} className="hover:bg-blue-50 dark:hover:bg-gray-800 transition-colors">
-                          <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                          <td className="px-6 py-4 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap text-left">
                             <button onClick={() => setViewingId(j.id)} className="hover:text-[#0066ff] hover:underline">{j.journal_number}</button>
                             {j.posting_event_type === 'REVERSAL' && <span className="ml-1.5 text-[10px] text-amber-600">(reversal)</span>}
                           </td>
-                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{j.journal_date}</td>
-                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{j.posting_date}</td>
-                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{j.source_type.replace(/_/g, ' ')}</td>
-                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{j.source_number || '—'}</td>
-                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{j.description || '—'}</td>
-                          <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{j.total_debit}</td>
-                          <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap">₹{j.total_credit}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-right">{j.journal_date}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-right">{j.posting_date}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{j.source_type.replace(/_/g, ' ')}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{j.source_number || '—'}</td>
+                          <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{j.description || '—'}</td>
+                          <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{j.total_debit}</td>
+                          <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{j.total_credit}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-left">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[j.status]}`}>{j.status}</span>
                           </td>
                           <td className="px-6 py-4 text-center whitespace-nowrap">
@@ -215,17 +220,17 @@ const AccountingManagement: React.FC = () => {
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <tr>
                     {['Code', 'Name', 'Type', 'Status'].map((h) => (
-                      <th key={h} className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">{h}</th>
+                      <th key={h} className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider text-left">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {accounts.map((a) => (
                     <tr key={a.id}>
-                      <td className="px-6 py-3 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{a.code}</td>
-                      <td className="px-6 py-3 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap">{a.name}</td>
-                      <td className="px-6 py-3 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{a.account_type}</td>
-                      <td className="px-6 py-3 text-[13px] whitespace-nowrap">{a.is_active ? <span className="text-green-600">Active</span> : <span className="text-gray-400">Inactive</span>}</td>
+                      <td className="px-6 py-3 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{a.code}</td>
+                      <td className="px-6 py-3 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap text-left">{a.name}</td>
+                      <td className="px-6 py-3 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{a.account_type}</td>
+                      <td className="px-6 py-3 text-[13px] whitespace-nowrap text-left">{a.is_active ? <span className="text-green-600">Active</span> : <span className="text-gray-400">Inactive</span>}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -248,15 +253,15 @@ const AccountingManagement: React.FC = () => {
                 <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
                   <tr>
                     {['Posting Rule', 'Mapped Account'].map((h) => (
-                      <th key={h} className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">{h}</th>
+                      <th key={h} className="px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider text-left">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {mappings.map((m) => (
                     <tr key={m.posting_rule_code}>
-                      <td className="px-6 py-3 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap">{m.posting_rule_code.replace(/_/g, ' ')}</td>
-                      <td className="px-6 py-3 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap">{m.account_code} — {m.account_name}</td>
+                      <td className="px-6 py-3 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{m.posting_rule_code.replace(/_/g, ' ')}</td>
+                      <td className="px-6 py-3 text-[14px] font-medium text-gray-900 dark:text-white whitespace-nowrap text-left">{m.account_code} — {m.account_name}</td>
                     </tr>
                   ))}
                 </tbody>

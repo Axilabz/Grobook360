@@ -115,6 +115,8 @@ class PaymentListItem(BaseModel):
     status: str
     cheque_status: str | None
     created_by: str | None
+    created_by_name: str | None = None
+    updated_by_name: str | None = None
     created_at: str
     updated_at: str
     row_version: int

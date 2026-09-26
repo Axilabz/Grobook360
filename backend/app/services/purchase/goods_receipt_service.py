@@ -25,6 +25,7 @@ from decimal import Decimal
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.concurrency import check_row_version
 from app.core.error_codes import (
@@ -46,6 +47,7 @@ from app.models.stock_ledger_entry import STOCK_IN, STOCK_OUT, StockLedgerEntry
 from app.models.supplier import Supplier
 from app.models.tenant import Tenant
 from app.models.unit_of_measure import UnitOfMeasure
+from app.models.user import User
 from app.schemas.purchase import ReceiptLineInput
 from app.services.audit.audit_service import AuditService
 from app.services.inventory.inventory_service import InventoryService
@@ -56,7 +58,7 @@ from app.services.sales.document_numbering_service import DocumentNumberingServi
 
 @dataclass(frozen=True)
 class GoodsReceiptPage:
-    items: list[tuple[GoodsReceipt, str, str]]  # (receipt, supplier_name, po_number)
+    items: list[tuple[GoodsReceipt, str, str, str | None, str | None]]  # (receipt, supplier_name, po_number, created_by_name, updated_by_name)
     total_items: int
 
 
@@ -171,10 +173,14 @@ class GoodsReceiptService:
         self, *, tenant_id: uuid.UUID, page: int, page_size: int, search: str | None, status_filter: str | None,
         supplier_id: uuid.UUID | None, purchase_order_id: uuid.UUID | None, date_from: date | None, date_to: date | None,
     ) -> GoodsReceiptPage:
+        creator = aliased(User)
+        updater = aliased(User)
         base = (
-            select(GoodsReceipt, Supplier.name, PurchaseOrder.po_number)
+            select(GoodsReceipt, Supplier.name, PurchaseOrder.po_number, creator.name, updater.name)
             .join(Supplier, Supplier.id == GoodsReceipt.supplier_id)
             .outerjoin(PurchaseOrder, PurchaseOrder.id == GoodsReceipt.source_purchase_order_id)
+            .outerjoin(creator, creator.id == GoodsReceipt.created_by)
+            .outerjoin(updater, updater.id == GoodsReceipt.updated_by)
             .where(GoodsReceipt.tenant_id == tenant_id)
         )
         if search:
@@ -196,7 +202,18 @@ class GoodsReceiptService:
 
         paged = base.order_by(GoodsReceipt.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
         rows = (await self._session.execute(paged)).all()
-        return GoodsReceiptPage(items=[(row[0], row[1], row[2]) for row in rows], total_items=total_items)
+        return GoodsReceiptPage(items=[(row[0], row[1], row[2], row[3], row[4]) for row in rows], total_items=total_items)
+
+    async def get_creator_names(self, receipt: GoodsReceipt) -> tuple[str | None, str | None]:
+        """Narrow, additive lookup — mirrors PurchaseOrderService's own
+        `get_creator_names`; kept separate from `get_receipt`'s tuple shape
+        since that method is also called from PurchaseInvoiceService."""
+        user_ids = [uid for uid in {receipt.created_by, receipt.updated_by} if uid is not None]
+        if not user_ids:
+            return None, None
+        result = await self._session.execute(select(User.id, User.name).where(User.id.in_(user_ids)))
+        names = dict(result.all())
+        return names.get(receipt.created_by), names.get(receipt.updated_by)
 
     async def get_receipt(
         self, *, tenant_id: uuid.UUID, receipt_id: uuid.UUID
