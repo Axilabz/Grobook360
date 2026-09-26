@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.accounting import router as accounting_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.configuration import router as configuration_router
+from app.api.v1.parties import router as parties_router
 from app.api.v1.credit_debit_notes import router as credit_debit_notes_router
 from app.api.v1.customer_receipts import router as customer_receipts_router
 from app.api.v1.customers import router as customers_router
@@ -66,3 +67,4 @@ api_router.include_router(reports_router)
 api_router.include_router(payroll_router)
 api_router.include_router(exports_router)
 api_router.include_router(configuration_router)
+api_router.include_router(parties_router)

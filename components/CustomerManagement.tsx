@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Plus, Pencil, UserCheck, UserX, ChevronLeft, ChevronRight, X, Loader2,
-  AlertTriangle, Building2, User, MapPin, FileText, Eye, Navigation,
+  AlertTriangle, Building2, User, MapPin, FileText, Eye, Navigation, LayoutDashboard,
 } from 'lucide-react';
 import Input from './Input';
 import Select from './Select';
+import PartyProfile from '../shared/PartyProfile';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import MobileFilterToggle from '../shared/MobileFilterToggle';
@@ -50,6 +51,7 @@ const CustomerManagement: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
+  const [profileCustomerId, setProfileCustomerId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ customer: Customer; type: 'activate' | 'deactivate' } | null>(null);
 
   const fetchCustomers = useCallback(async () => {
@@ -217,6 +219,9 @@ const CustomerManagement: React.FC = () => {
                           <button onClick={() => setViewingCustomer(customer)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View">
                             <Eye size={16} />
                           </button>
+                          <button onClick={() => setProfileCustomerId(customer.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="360° Profile">
+                            <LayoutDashboard size={16} />
+                          </button>
                           {canEdit && (
                             <button onClick={() => setEditingCustomer(customer)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="Edit">
                               <Pencil size={16} />
@@ -262,6 +267,9 @@ const CustomerManagement: React.FC = () => {
                 <div className="flex gap-2">
                   <button onClick={() => setViewingCustomer(customer)} className="flex-1 flex items-center justify-center gap-1.5 text-[13px] py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
                     <Eye size={14} /> View
+                  </button>
+                  <button onClick={() => setProfileCustomerId(customer.id)} className="flex-1 flex items-center justify-center gap-1.5 text-[13px] py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
+                    <LayoutDashboard size={14} /> 360°
                   </button>
                   {canEdit && (
                     <button onClick={() => setEditingCustomer(customer)} className="flex-1 flex items-center justify-center gap-1.5 text-[13px] py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
@@ -322,6 +330,18 @@ const CustomerManagement: React.FC = () => {
           customer={viewingCustomer}
           onClose={() => setViewingCustomer(null)}
           onEdit={canEdit ? () => { setEditingCustomer(viewingCustomer); setViewingCustomer(null); } : undefined}
+        />
+      )}
+
+      {profileCustomerId && (
+        <PartyProfile
+          partyType="customer"
+          partyId={profileCustomerId}
+          onClose={() => setProfileCustomerId(null)}
+          onEdit={canEdit ? () => {
+            const customer = customers.find((c) => c.id === profileCustomerId);
+            if (customer) { setEditingCustomer(customer); setProfileCustomerId(null); }
+          } : undefined}
         />
       )}
 
