@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Flows — GroBook 360</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>🔀 GroBook 360 — End-to-End Data Flows</h1>
+  </header>
+
+  <main class="content">
+    <div class="intro-card">
+      A technical reference, built directly from the backend source code (routers, services, models) — for each
+      business document chain: which <strong style="color:#38bdf8">frontend screen</strong> calls which
+      <strong style="color:#a78bfa">API endpoint</strong>, which <strong style="color:#fbbf24">service method</strong>
+      runs, which <strong style="color:#34d399">database tables</strong> get written, and what
+      <strong style="color:#f472b6">side-effects</strong> (stock ledger, accounting journal, GST transaction,
+      e-invoice/e-way bill, audit log) fire — in the exact order they happen, same transaction or not. Click any
+      stage to expand it.
+      <div class="legend">
+        <span><span class="dot" style="background:#38bdf8"></span>Frontend</span>
+        <span><span class="dot" style="background:#a78bfa"></span>API Endpoint</span>
+        <span><span class="dot" style="background:#fbbf24"></span>Service Method</span>
+        <span><span class="dot" style="background:#34d399"></span>Database Tables</span>
+        <span><span class="dot" style="background:#f472b6"></span>Side-Effects</span>
+      </div>
+    </div>
+
+    <div class="landing-grid">
+      <a class="chain-card" href="sales-chain.html">
+        <div class="emoji">🧾</div>
+        <h3>Sales Chain</h3>
+        <p>Estimate → Sales Order → Delivery Challan → Sales Invoice → Sales Return / Credit-Debit Note → E-Invoice/E-Way Bill.</p>
+      </a>
+      <a class="chain-card" href="purchase-chain.html">
+        <div class="emoji">📦</div>
+        <h3>Purchase Chain</h3>
+        <p>Purchase Order → Goods Receipt → Purchase Invoice (3 invoice-type branches) → Purchase Return.</p>
+      </a>
+      <a class="chain-card" href="payments-chain.html">
+        <div class="emoji">💰</div>
+        <h3>Payments Chain</h3>
+        <p>Customer Receipt / Supplier Payment → allocation against outstanding invoices → accounting journal.</p>
+      </a>
+      <a class="chain-card" href="inventory-chain.html">
+        <div class="emoji">📊</div>
+        <h3>Inventory / Stock Ledger</h3>
+        <p>The shared <code>post_movement</code> primitive every document-moving-stock calls through, plus the 4 manual actions that also post to Accounting at Weighted Average Cost.</p>
+      </a>
+      <a class="chain-card" href="payroll-chain.html">
+        <div class="emoji">🧑‍🏭</div>
+        <h3>Payroll Chain</h3>
+        <p>Employee/Salary/Attendance/Leave → Payroll Run → Calculate → Finalize → one consolidated accounting journal.</p>
+      </a>
+      <a class="chain-card" href="accounting-gst-engine.html">
+        <div class="emoji">📘</div>
+        <h3>Accounting & GST Engine</h3>
+        <p>The shared double-entry engine (JournalService, Chart of Accounts, Account Mapping) and GST transaction ledger every chain above posts into.</p>
+      </a>
+      <a class="chain-card" href="reports-analysis-chain.html">
+        <div class="emoji">🔎</div>
+        <h3>Reports & Analysis (Read Path)</h3>
+        <p>How Reports/Analysis/Dashboard read — never write — from every table the chains above produce.</p>
+      </a>
+    </div>
+  </main>
+
+  <footer class="flow-footer">Built from direct source-code verification (routers, services, models) — regenerate if the backend changes.</footer>
+</body>
+</html>

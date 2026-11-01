@@ -65,3 +65,11 @@ class StockLedgerEntry(UUIDPKMixin, Base, AuditColumnsMixin, RowVersionMixin):
     batch_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
     expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Manual Stock Movements -> Accounting integration: per-base-unit cost
+    # actually used to value this movement for the accounting journal
+    # (entered unit_cost, or the product's current weighted-average
+    # cost_price at the time) — NULL when no cost was known/entered and no
+    # journal was posted for this movement. Purely for audit traceability;
+    # the authoritative running average lives on Product.cost_price, never
+    # recomputed by reading this column back.
+    unit_cost: Mapped[Decimal | None] = mapped_column(Numeric(15, 2), nullable=True)

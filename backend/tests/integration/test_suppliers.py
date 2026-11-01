@@ -270,9 +270,11 @@ async def test_supplier_api_021_invalid_update(client):
     assert response.status_code == 422
 
 
-async def test_supplier_api_022_unauthorized_update_by_salesperson_allowed(client):
-    # FR-SUPP-05: Salesperson MAY create/edit — asserts the positive case,
-    # distinguishing "Limited" from "No" access per Table 7.
+async def test_supplier_api_022_update_by_salesperson_denied(client):
+    # RBAC Alignment Phase: Supplier Management is now "No Access" for
+    # Salesperson (suppliers.update removed along with .view/.create) —
+    # this test used to assert the FR-SUPP-05-derived positive case; the
+    # new target matrix deliberately tightens it to a 403.
     await _signup_and_login_owner(client)
     created = await client.post(SUPPLIERS_ENDPOINT, json=_valid_supplier_payload())
     data = created.json()["data"]
@@ -282,7 +284,7 @@ async def test_supplier_api_022_unauthorized_update_by_salesperson_allowed(clien
         f"{SUPPLIERS_ENDPOINT}/{data['id']}",
         json={"name": "Edited By Salesperson", "expected_row_version": data["row_version"]},
     )
-    assert response.status_code == 200
+    assert response.status_code == 403
 
 
 async def test_supplier_api_023_cross_tenant_update_not_found(client):

@@ -43,6 +43,7 @@ from app.schemas.sales_invoice import (
 )
 from app.schemas.sales_return import ReturnEligibility, ReturnEligibilityLine
 from app.services.idempotency.idempotency_service import IdempotencyService
+from app.services.payments.payment_service import PaymentService
 from app.services.sales.credit_debit_note_service import CreditDebitNoteService
 from app.services.sales.sales_invoice_service import SalesInvoiceService
 from app.services.sales.sales_return_service import SalesReturnService
@@ -433,3 +434,21 @@ async def get_adjustment_eligibility(
         ],
     )
     return {"data": result.model_dump(), "meta": _meta()}
+
+
+@router.get("/{invoice_id}/payment-history")
+async def get_payment_history(
+    invoice_id: uuid.UUID,
+    context: AuthenticatedContext = Depends(require_permission(SALES_INVOICE_VIEW)),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Collections recorded against THIS invoice — a narrow, document-
+    scoped read gated by the source document's own .view permission,
+    mirroring the Purchase chain's own related-documents/audit-history
+    convention (PROMPT-020/021/022/023), not a general payment-browsing
+    API. Confirms tenant ownership of the invoice first (same 404-for-
+    cross-tenant discipline used everywhere else in this codebase)."""
+    tenant_id = _require_tenant(context)
+    await SalesInvoiceService(session).get_invoice(tenant_id=tenant_id, invoice_id=invoice_id)
+    entries = await PaymentService(session).list_receipts_for_invoice(tenant_id=tenant_id, sales_invoice_id=invoice_id)
+    return {"data": entries, "meta": _meta()}

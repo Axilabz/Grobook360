@@ -20,6 +20,7 @@ from app.core.exceptions import AuthenticationError, AuthorizationError
 from app.core.security import decode_access_token
 from app.db.session import get_db_session
 from app.db.tenant_context import set_tenant_context
+from app.services.audit.audit_service import AuditService
 from app.services.auth.permission_resolution import resolve_permissions_by_role_name
 from app.services.auth.session_service import SessionService
 
@@ -88,10 +89,33 @@ async def get_current_user(
 
 
 def require_permission(permission_code: str):
-    """Dependency factory enforcing a single required permission (API Contract S15)."""
+    """Dependency factory enforcing a single required permission (API Contract S15).
 
-    async def _check(context: AuthenticatedContext = Depends(get_current_user)) -> AuthenticatedContext:
+    RBAC Alignment Phase: a denied check is now also audited (append-only
+    audit_log, via the existing AuditService — no new audit infrastructure)
+    before the 403 is raised, mirroring the LOGIN_FAILED-audit-then-raise
+    convention already used in app/api/v1/auth.py. The audit insert is
+    committed on its own, independent of whatever the rest of the request's
+    session was doing, since the request is about to be rejected and the
+    session otherwise closes without committing.
+    """
+
+    async def _check(
+        request: Request,
+        context: AuthenticatedContext = Depends(get_current_user),
+        session: AsyncSession = Depends(get_db_session),
+    ) -> AuthenticatedContext:
         if permission_code not in context.permissions:
+            if context.tenant_id is not None:
+                await AuditService(session).record(
+                    tenant_id=context.tenant_id,
+                    actor_user_id=context.user_id,
+                    action="PERMISSION_DENIED",
+                    entity_type="authorization",
+                    entity_id=None,
+                    after={"permission_code": permission_code, "path": request.url.path, "method": request.method},
+                )
+                await session.commit()
             raise AuthorizationError(f"Missing required permission: {permission_code}")
         return context
 

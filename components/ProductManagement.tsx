@@ -50,6 +50,19 @@ function sanitizeDecimalInput(raw: string): string {
   return value;
 }
 
+// Suggests a SKU from the product name (e.g. "Amul Butter 500g" ->
+// "AMUL-BUTTER-500G") — matches the same `[A-Z0-9][A-Z0-9_-]{0,49}`
+// pattern the SKU field itself validates against. Purely a starting
+// suggestion: the user can edit it freely before saving (see the SKU
+// field's own onChange, which stops further auto-generation once touched).
+function deriveSkuFromName(name: string): string {
+  return name
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 30);
+}
+
 const STATUS_BADGE: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   INACTIVE: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -58,6 +71,7 @@ const STATUS_BADGE: Record<string, string> = {
 const ProductManagement: React.FC = () => {
   const { hasPermission } = useAuth();
   const { showToast } = useToast();
+  const { consumeParams } = useNavigation();
   // FR-PROD-04: Salesperson gets products.view ONLY — no create/edit/deactivate.
   const canCreate = hasPermission('products.create');
   const canEdit = hasPermission('products.update');
@@ -110,6 +124,18 @@ const ProductManagement: React.FC = () => {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+
+  // Arrived here from the header search (a specific product picked from its
+  // results) — open that product's detail view directly.
+  useEffect(() => {
+    const params = consumeParams('Products');
+    if (params?.id) {
+      getProduct(params.id)
+        .then(setViewingProduct)
+        .catch((err) => showToast(err instanceof ApiError ? err.message : 'Failed to load product.', 'error'));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleConfirmStatusChange = async () => {
     if (!confirmAction) return;
@@ -367,6 +393,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ mode, product, onCl
   const { showToast } = useToast();
   const { navigate } = useNavigation();
   const [sku, setSku] = useState(product?.sku || '');
+  const [skuManuallyEdited, setSkuManuallyEdited] = useState(mode === 'edit');
   const [name, setName] = useState(product?.name || '');
   const [hsnCode, setHsnCode] = useState(product?.hsn_code || '');
   const [gstRate, setGstRate] = useState(product?.gst_rate ? String(Number(product.gst_rate)) : '');
@@ -515,15 +542,34 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({ mode, product, onCl
             <Package size={14} /> Basic Information
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4">
-            <Input label="Product Name" value={name} onChange={(e) => setName(e.target.value)} error={errors.name} />
+            <Input
+              label="Product Name"
+              value={name}
+              onChange={(e) => {
+                const value = e.target.value;
+                setName(value);
+                if (mode === 'create' && !skuManuallyEdited) {
+                  setSku(deriveSkuFromName(value));
+                }
+              }}
+              error={errors.name}
+            />
             <Input
               label="SKU / Product Code"
               value={sku}
               disabled={mode === 'edit'}
-              onChange={(e) => setSku(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))}
+              onChange={(e) => {
+                setSkuManuallyEdited(true);
+                setSku(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''));
+              }}
               error={errors.sku}
             />
           </div>
+          {mode === 'create' && (
+            <p className="text-[12px] text-gray-400 dark:text-gray-500 -mt-6 mb-2">
+              SKU is suggested from the product name — edit it anytime before saving.
+            </p>
+          )}
 
           {/* GST / Tax Information */}
           <h4 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-4 mt-2 flex items-center gap-2">

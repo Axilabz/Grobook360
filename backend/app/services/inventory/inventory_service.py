@@ -55,6 +55,7 @@ from app.models.stock_ledger_entry import (
     StockLedgerEntry,
 )
 from app.models.unit_of_measure import UnitOfMeasure
+from app.services.accounting.accounting_posting_service import AccountingPostingService
 from app.services.audit.audit_service import AuditService
 
 _MAX_NUMBER_ATTEMPTS = 5
@@ -155,7 +156,15 @@ class InventoryService:
         audit_action: str,
         audit_extra: dict | None,
         ip_address: str | None,
+        unit_cost: Decimal | None = None,
     ) -> StockLedgerEntry:
+        # `unit_cost` is optional and additive — every existing caller
+        # (Delivery Challan, Goods Receipt, Sales/Purchase Invoice, Sales/
+        # Purchase Return, ...) omits it and the column stays NULL, exactly
+        # as before this parameter existed. Only InventoryService's own 4
+        # manual-movement methods pass it, to value a journal entry at
+        # Weighted Average Cost. Must be set HERE, at insert time — the
+        # trigger below makes any later UPDATE to this row impossible.
         factor = await self._conversion_factor(tenant_id, product, uom)
         base_quantity = (quantity * factor).quantize(Decimal("0.001"))
         direction = MOVEMENT_DIRECTION[movement_type]
@@ -180,6 +189,7 @@ class InventoryService:
             quantity=quantity,
             uom_id=uom.id,
             base_quantity=base_quantity,
+            unit_cost=unit_cost,
             occurred_at=datetime.now(timezone.utc),
             created_by=actor_user_id,
             updated_by=actor_user_id,
@@ -221,14 +231,19 @@ class InventoryService:
         product_id: uuid.UUID,
         quantity: Decimal,
         uom_id: uuid.UUID,
+        unit_cost: Decimal | None = None,
         ip_address: str | None,
     ) -> StockLedgerEntry:
         product = await self._get_active_product_locked(tenant_id, product_id)
         uom = await self.get_uom_or_raise(tenant_id, uom_id)
         location = await self.ensure_default_location(tenant_id)
 
+        # unit_cost must be passed INTO post_movement so it's part of the
+        # initial INSERT — stock_ledger_entry is append-only (migration
+        # 0011's BEFORE UPDATE/DELETE trigger rejects any later UPDATE, the
+        # same discipline as audit_log), so it can never be set afterward.
         try:
-            return await self.post_movement(
+            entry = await self.post_movement(
                 tenant_id=tenant_id,
                 actor_user_id=actor_user_id,
                 product=product,
@@ -244,11 +259,30 @@ class InventoryService:
                 audit_action="OPENING_STOCK_CREATED",
                 audit_extra=None,
                 ip_address=ip_address,
+                unit_cost=unit_cost,
             )
         except IntegrityError as exc:
             raise ConflictError(
                 "Opening stock has already been recorded for this product.", code=INV_DUPLICATE_OPENING_STOCK
             ) from exc
+
+        # Manual Stock Movements -> Accounting (Weighted Average Cost): the
+        # entered unit_cost (always per the product's BASE unit, same
+        # denomination as the existing Product.cost_price field) becomes the
+        # product's starting cost basis outright -- opening stock defines the
+        # baseline, nothing to blend against yet. Omitting unit_cost still
+        # records the stock movement fine; it just posts no journal (never a
+        # fabricated/zero-value entry).
+        if unit_cost is not None and unit_cost > 0:
+            product.cost_price = unit_cost
+            amount = (entry.base_quantity * unit_cost).quantize(Decimal("0.01"))
+            await self._session.flush()
+            await AccountingPostingService(self._session).post_opening_stock(
+                tenant_id=tenant_id, actor_user_id=actor_user_id, source_id=entry.id,
+                movement_date=entry.occurred_at.date(), amount=amount,
+                description=f"Opening stock — {product.sku}", ip_address=ip_address,
+            )
+        return entry
 
     # --- manual stock-in / stock-out (§16/§17: the foundation future
     # Purchase/Sales modules will call internally with their own
@@ -263,13 +297,25 @@ class InventoryService:
         quantity: Decimal,
         uom_id: uuid.UUID,
         notes: str | None,
+        unit_cost: Decimal | None = None,
         ip_address: str | None,
     ) -> StockLedgerEntry:
         product = await self._get_active_product_locked(tenant_id, product_id)
         uom = await self.get_uom_or_raise(tenant_id, uom_id)
         location = await self.ensure_default_location(tenant_id)
+        qty_before = product.stock_qty_cache
+        avg_before = product.cost_price
+        # Manual Stock Movements -> Accounting (Weighted Average Cost):
+        # unit_cost given -> recompute the running average and post using
+        # the entered cost. unit_cost omitted -> fall back to the CURRENT
+        # average (assumes this correction is worth the same as existing
+        # stock) so the average itself is left unchanged. Resolved BEFORE
+        # post_movement so it can be passed in and stored at insert time —
+        # stock_ledger_entry is append-only (migration 0011's trigger
+        # rejects any later UPDATE).
+        cost_used = unit_cost if unit_cost is not None else avg_before
 
-        return await self.post_movement(
+        entry = await self.post_movement(
             tenant_id=tenant_id,
             actor_user_id=actor_user_id,
             product=product,
@@ -282,7 +328,20 @@ class InventoryService:
             audit_action="STOCK_MOVEMENT_CREATED",
             audit_extra={"notes": notes} if notes else None,
             ip_address=ip_address,
+            unit_cost=cost_used if cost_used else None,
         )
+
+        amount = (entry.base_quantity * cost_used).quantize(Decimal("0.01")) if cost_used else Decimal("0")
+        if unit_cost is not None and unit_cost > 0:
+            new_qty = qty_before + entry.base_quantity
+            product.cost_price = ((qty_before * avg_before) + (entry.base_quantity * unit_cost)) / new_qty
+        await self._session.flush()
+        description = f"Manual Stock In — {product.sku}" + (f" ({notes})" if notes else "")
+        await AccountingPostingService(self._session).post_stock_increase(
+            tenant_id=tenant_id, actor_user_id=actor_user_id, source_type="MANUAL_STOCK_IN", source_id=entry.id,
+            movement_date=entry.occurred_at.date(), amount=amount, description=description, ip_address=ip_address,
+        )
+        return entry
 
     async def record_stock_out(
         self,
@@ -298,8 +357,11 @@ class InventoryService:
         product = await self._get_active_product_locked(tenant_id, product_id)
         uom = await self.get_uom_or_raise(tenant_id, uom_id)
         location = await self.ensure_default_location(tenant_id)
+        # Weighted-average cost never changes on an outflow -- only the
+        # quantity decreases; the per-unit cost of what remains is unaffected.
+        cost_used = product.cost_price
 
-        return await self.post_movement(
+        entry = await self.post_movement(
             tenant_id=tenant_id,
             actor_user_id=actor_user_id,
             product=product,
@@ -312,7 +374,16 @@ class InventoryService:
             audit_action="STOCK_MOVEMENT_CREATED",
             audit_extra={"notes": notes} if notes else None,
             ip_address=ip_address,
+            unit_cost=cost_used if cost_used else None,
         )
+
+        amount = (entry.base_quantity * cost_used).quantize(Decimal("0.01")) if cost_used else Decimal("0")
+        description = f"Manual Stock Out — {product.sku}" + (f" ({notes})" if notes else "")
+        await AccountingPostingService(self._session).post_stock_decrease(
+            tenant_id=tenant_id, actor_user_id=actor_user_id, source_type="MANUAL_STOCK_OUT", source_id=entry.id,
+            movement_date=entry.occurred_at.date(), amount=amount, description=description, ip_address=ip_address,
+        )
+        return entry
 
     # --- manual stock adjustment -----------------------------------------
 
@@ -331,12 +402,15 @@ class InventoryService:
         uom_id: uuid.UUID,
         direction: str,
         reason: str,
+        unit_cost: Decimal | None = None,
         ip_address: str | None,
     ) -> tuple[StockLedgerEntry, StockAdjustment]:
         product = await self._get_active_product_locked(tenant_id, product_id)
         uom = await self.get_uom_or_raise(tenant_id, uom_id)
         location = await self.ensure_default_location(tenant_id)
         movement_type = ADJUSTMENT_IN if direction == "IN" else ADJUSTMENT_OUT
+        qty_before = product.stock_qty_cache
+        avg_before = product.cost_price
 
         last_error: Exception | None = None
         for attempt in range(_MAX_NUMBER_ATTEMPTS):
@@ -366,6 +440,14 @@ class InventoryService:
         else:
             raise ConflictError("Could not allocate a unique adjustment number. Please retry.") from last_error
 
+        # Manual Stock Movements -> Accounting (Weighted Average Cost) --
+        # mirrors record_stock_in/record_stock_out's own resolution exactly,
+        # branching on the adjustment's own direction. Resolved BEFORE
+        # post_movement so it can be passed in and stored at insert time —
+        # stock_ledger_entry is append-only (migration 0011's trigger
+        # rejects any later UPDATE).
+        cost_used = (unit_cost if unit_cost is not None else avg_before) if direction == "IN" else avg_before
+
         entry = await self.post_movement(
             tenant_id=tenant_id,
             actor_user_id=actor_user_id,
@@ -379,7 +461,27 @@ class InventoryService:
             audit_action="STOCK_ADJUSTMENT_CREATED",
             audit_extra={"adjustment_number": number, "reason": reason, "direction": direction},
             ip_address=ip_address,
+            unit_cost=cost_used if cost_used else None,
         )
+
+        description = f"Stock Adjustment {adjustment.adjustment_number} — {reason}"
+        posting_service = AccountingPostingService(self._session)
+        if direction == "IN":
+            amount = (entry.base_quantity * cost_used).quantize(Decimal("0.01")) if cost_used else Decimal("0")
+            if unit_cost is not None and unit_cost > 0:
+                new_qty = qty_before + entry.base_quantity
+                product.cost_price = ((qty_before * avg_before) + (entry.base_quantity * unit_cost)) / new_qty
+            await self._session.flush()
+            await posting_service.post_stock_increase(
+                tenant_id=tenant_id, actor_user_id=actor_user_id, source_type="STOCK_ADJUSTMENT", source_id=entry.id,
+                movement_date=entry.occurred_at.date(), amount=amount, description=description, ip_address=ip_address,
+            )
+        else:
+            amount = (entry.base_quantity * cost_used).quantize(Decimal("0.01")) if cost_used else Decimal("0")
+            await posting_service.post_stock_decrease(
+                tenant_id=tenant_id, actor_user_id=actor_user_id, source_type="STOCK_ADJUSTMENT", source_id=entry.id,
+                movement_date=entry.occurred_at.date(), amount=amount, description=description, ip_address=ip_address,
+            )
         return entry, adjustment
 
     # --- queries -----------------------------------------------------------

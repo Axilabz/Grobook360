@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GroBook 360 — Role User Flows</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>🧭 GroBook 360 — Interactive User Flows by Role</h1>
+  </header>
+
+  <div style="max-width:900px;margin:24px auto 0;padding:0 28px;color:#4b5563;font-size:14.5px;line-height:1.6;">
+    Three self-contained, interactive step-by-step guides — one per tenant role — covering every module, sub-module and
+    feature this app exposes, built directly from the backend's own permission catalogue
+    (<code>backend/app/core/permissions.py</code>). Each page only shows the modules and actions that role can actually
+    perform; pick a role below and click through each module with Next/Back.
+  </div>
+
+  <div class="landing-grid">
+    <a class="role-card" href="owner.html">
+      <div class="emoji">👑</div>
+      <h3>Owner</h3>
+      <p>Full access to every module, including user management, tenant configuration, journal reversal, GST export and the role/permission catalogue.</p>
+    </a>
+    <a class="role-card" href="manager.html">
+      <div class="emoji">🧑‍💼</div>
+      <h3>Manager</h3>
+      <p>Runs day-to-day operations across almost every module — view/prepare-only on Accounting &amp; GST's higher-risk actions, view-only on Users &amp; Configuration, no Role/Permission access.</p>
+    </a>
+    <a class="role-card" href="salesperson.html">
+      <div class="emoji">🧑‍🔧</div>
+      <h3>Salesperson</h3>
+      <p>Field-sales scoped: the day-to-day Sales document chain, Customers, view-only Products/Inventory, drafting Customer Receipts — zero Purchase, Accounting, GST, Payroll or Admin access.</p>
+    </a>
+  </div>
+
+  <footer class="flow-footer">Regenerate by editing <code>assets/modules-data.js</code> whenever backend/app/core/permissions.py changes.</footer>
+</body>
+</html>

@@ -62,7 +62,7 @@ const SignIn: React.FC<SignInProps> = ({ onChangeView, onLoginSuccess }) => {
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden w-full max-w-md mx-auto border border-gray-100 dark:border-gray-700 relative z-10 animate-fade-in transition-colors">
         <div className="p-8 pt-6">
           <h1 className="text-[26px] md:text-[30px] lg:text-[32px] font-bold text-gray-900 dark:text-white mb-1 leading-tight tracking-tight">
-            Saas App
+            GroBook 360
           </h1>
           <p className="text-[14px] md:text-[16px] text-gray-500 dark:text-gray-400 mb-8 font-normal leading-[1.4]">
             Sign In To Access Book
@@ -127,7 +127,7 @@ const SignIn: React.FC<SignInProps> = ({ onChangeView, onLoginSuccess }) => {
 
           <div className="text-center border-t border-[#A39797] dark:border-gray-600 pt-4">
             <p className="text-[12px] md:text-[14px] text-gray-600 dark:text-gray-400">
-              Don't have a Saas App Account ?{' '}
+              Don't have a GroBook 360 Account ?{' '}
               <button
                   onClick={() => onChangeView(AuthView.SIGN_UP)}
                   className="text-blue-600 dark:text-blue-400 font-bold hover:underline uppercase"

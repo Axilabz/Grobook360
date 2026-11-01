@@ -43,6 +43,16 @@ CHEQUE_ACCOUNT = "CHEQUE_ACCOUNT"
 SALARY_EXPENSE = "SALARY_EXPENSE"
 SALARY_PAYABLE = "SALARY_PAYABLE"
 SALARY_DEDUCTIONS_PAYABLE = "SALARY_DEDUCTIONS_PAYABLE"
+# Manual Stock Movements -> Accounting integration: a tenant's chosen
+# valuation method is Weighted Average Cost (no per-batch cost tracking
+# exists in this schema, which FIFO would require). Deliberately additive
+# — the existing Sales/Purchase Invoice posting rules are untouched
+# (Purchase still posts to PURCHASE_EXPENSE, not INVENTORY; relitigating
+# that is a separate, bigger decision). Only the 4 manual-movement
+# actions (Opening Stock, Stock In, Stock Out, Adjustment) use these.
+INVENTORY = "INVENTORY"
+OPENING_BALANCE_EQUITY = "OPENING_BALANCE_EQUITY"
+STOCK_ADJUSTMENT = "STOCK_ADJUSTMENT"
 
 POSTING_RULE_CODES = frozenset(
     {
@@ -50,6 +60,7 @@ POSTING_RULE_CODES = frozenset(
         ACCOUNTS_PAYABLE, PURCHASE_EXPENSE, INPUT_CGST, INPUT_SGST, INPUT_IGST, PURCHASE_RETURN_ADJUSTMENT,
         CASH_ACCOUNT, BANK_ACCOUNT, UPI_ACCOUNT, CHEQUE_ACCOUNT,
         SALARY_EXPENSE, SALARY_PAYABLE, SALARY_DEDUCTIONS_PAYABLE,
+        INVENTORY, OPENING_BALANCE_EQUITY, STOCK_ADJUSTMENT,
     }
 )
 
@@ -78,6 +89,9 @@ DEFAULT_ACCOUNT_SEED: dict[str, tuple[str, str, str]] = {
     SALARY_PAYABLE: ("2050", "Salary Payable", LIABILITY),
     SALARY_DEDUCTIONS_PAYABLE: ("2060", "Salary Deductions Payable", LIABILITY),
     SALARY_EXPENSE: ("5030", "Salary Expense", EXPENSE),
+    INVENTORY: ("1090", "Inventory", ASSET),
+    OPENING_BALANCE_EQUITY: ("3010", "Opening Balance Equity", EQUITY),
+    STOCK_ADJUSTMENT: ("5040", "Stock Adjustment", EXPENSE),
 }
 
 # --- Journal document type (for DocumentNumberingService) ---
@@ -105,3 +119,9 @@ SRC_PURCHASE_RETURN = "PURCHASE_RETURN"
 SRC_CREDIT_NOTE = "CREDIT_NOTE"
 SRC_DEBIT_NOTE = "DEBIT_NOTE"
 SRC_PAYROLL_RUN = "PAYROLL_RUN"
+# Matches the exact source_type string literals InventoryService.post_movement
+# already uses for these 4 manual actions (app/services/inventory/inventory_service.py).
+SRC_OPENING_STOCK = "OPENING_STOCK"
+SRC_MANUAL_STOCK_IN = "MANUAL_STOCK_IN"
+SRC_MANUAL_STOCK_OUT = "MANUAL_STOCK_OUT"
+SRC_STOCK_ADJUSTMENT = "STOCK_ADJUSTMENT"

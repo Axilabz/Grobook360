@@ -27,4 +27,6 @@ export interface SelectProps {
   placeholder?: string;
   disabled?: boolean;
   labelClassName?: string;
+  /** Show the "Add new item..." creatable-entry row at the bottom of the dropdown. Defaults to true (existing behavior everywhere) — set false for fixed-enum fields (e.g. a period/comparison picker) where an ad-hoc value would never be valid. */
+  allowAddNew?: boolean;
 }

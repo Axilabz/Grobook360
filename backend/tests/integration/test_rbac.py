@@ -169,7 +169,11 @@ async def test_manager_gets_view_only_permission_set(client):
     me = await client.get("/api/v1/auth/me")
     permissions = set(me.json()["data"]["permissions"])
     assert permissions == {
-        "users.view", "roles.view", "permissions.view",
+        # RBAC Alignment Phase: Manager no longer gets roles.view/
+        # permissions.view (Role & Permission Configuration: Owner only),
+        # accounting.manage_account_mappings/accounting.reverse_journal, or
+        # gst.export (both: "Limited" for Manager).
+        "users.view",
         "customers.view", "customers.create", "customers.update", "customers.activate", "customers.deactivate", "customers.export",
         "suppliers.view", "suppliers.create", "suppliers.update", "suppliers.activate", "suppliers.deactivate", "suppliers.export",
         "products.view", "products.create", "products.update", "products.activate", "products.deactivate", "products.export",
@@ -193,8 +197,8 @@ async def test_manager_gets_view_only_permission_set(client):
         "purchase_return.view", "purchase_return.create", "purchase_return.edit", "purchase_return.confirm", "purchase_return.cancel",
         "customer_receipt.view", "customer_receipt.create", "customer_receipt.edit", "customer_receipt.post", "customer_receipt.reverse", "customer_receipt.export",
         "supplier_payment.view", "supplier_payment.create", "supplier_payment.edit", "supplier_payment.post", "supplier_payment.reverse", "supplier_payment.export",
-        "accounting.view_journals", "accounting.view_chart_of_accounts", "accounting.manage_account_mappings", "accounting.reverse_journal",
-        "gst.view", "gst.prepare_returns", "gst.export",
+        "accounting.view_journals", "accounting.view_chart_of_accounts",
+        "gst.view", "gst.prepare_returns",
         "reports.view_dashboard", "reports.view_sales", "reports.view_purchase", "reports.view_inventory",
         "reports.view_receivables", "reports.view_payables", "reports.view_payments", "reports.view_general_ledger",
         "reports.view_trial_balance", "reports.view_profit_loss", "reports.view_balance_sheet", "reports.view_gst",
@@ -224,8 +228,9 @@ async def test_salesperson_gets_no_permissions(client):
     await _create_user_and_login(client, role="SALESPERSON")
     me = await client.get("/api/v1/auth/me")
     assert set(me.json()["data"]["permissions"]) == {
+        # RBAC Alignment Phase: Salesperson no longer gets suppliers.view/
+        # create/update — Supplier Management is now "No Access".
         "customers.view", "customers.create", "customers.update",
-        "suppliers.view", "suppliers.create", "suppliers.update",
         "products.view",
         "inventory.view",
         "sales_estimate.view", "sales_estimate.create", "sales_estimate.edit", "sales_estimate.send",
@@ -311,7 +316,9 @@ async def test_new_role_row_is_auto_seeded_with_default_permissions(client, db_s
     )
     codes = {row[0] for row in perm_result.all()}
     assert codes == {
-        "users.view", "roles.view", "permissions.view",
+        # RBAC Alignment Phase: same tightened set as
+        # test_manager_gets_view_only_permission_set above.
+        "users.view",
         "customers.view", "customers.create", "customers.update", "customers.activate", "customers.deactivate", "customers.export",
         "suppliers.view", "suppliers.create", "suppliers.update", "suppliers.activate", "suppliers.deactivate", "suppliers.export",
         "products.view", "products.create", "products.update", "products.activate", "products.deactivate", "products.export",
@@ -335,8 +342,8 @@ async def test_new_role_row_is_auto_seeded_with_default_permissions(client, db_s
         "purchase_return.view", "purchase_return.create", "purchase_return.edit", "purchase_return.confirm", "purchase_return.cancel",
         "customer_receipt.view", "customer_receipt.create", "customer_receipt.edit", "customer_receipt.post", "customer_receipt.reverse", "customer_receipt.export",
         "supplier_payment.view", "supplier_payment.create", "supplier_payment.edit", "supplier_payment.post", "supplier_payment.reverse", "supplier_payment.export",
-        "accounting.view_journals", "accounting.view_chart_of_accounts", "accounting.manage_account_mappings", "accounting.reverse_journal",
-        "gst.view", "gst.prepare_returns", "gst.export",
+        "accounting.view_journals", "accounting.view_chart_of_accounts",
+        "gst.view", "gst.prepare_returns",
         "reports.view_dashboard", "reports.view_sales", "reports.view_purchase", "reports.view_inventory",
         "reports.view_receivables", "reports.view_payables", "reports.view_payments", "reports.view_general_ledger",
         "reports.view_trial_balance", "reports.view_profit_loss", "reports.view_balance_sheet", "reports.view_gst",
@@ -347,3 +354,48 @@ async def test_new_role_row_is_auto_seeded_with_default_permissions(client, db_s
         "payroll.run", "payroll.finalize", "payroll.view", "payroll.view_payslip", "payroll.export",
         "configuration.view",
     }
+
+
+# --- RBAC Alignment Phase: targeted 403s for the new matrix's changed boundaries ---
+
+
+async def test_salesperson_denied_supplier_view(client):
+    # Supplier Management is now "No Access" for Salesperson.
+    await _signup_and_login_owner(client)
+    await _create_user_and_login(client, role="SALESPERSON")
+    response = await client.get("/api/v1/suppliers")
+    assert response.status_code == 403
+
+
+async def test_salesperson_denied_supplier_create(client):
+    await _signup_and_login_owner(client)
+    await _create_user_and_login(client, role="SALESPERSON")
+    response = await client.post(
+        "/api/v1/suppliers",
+        json={"name": "Blocked Supplier", "phone": _unique_phone(), "state_code": "33"},
+    )
+    assert response.status_code == 403
+
+
+async def test_manager_denied_accounting_account_mappings(client):
+    # Accounting & Ledgers: "Limited" for Manager — manage_account_mappings removed.
+    await _signup_and_login_owner(client)
+    await _create_user_and_login(client, role="MANAGER")
+    response = await client.get("/api/v1/accounting/account-mappings")
+    assert response.status_code == 403
+
+
+async def test_manager_denied_gst_export(client):
+    # GST & Compliance: "Limited" for Manager — gst.export removed.
+    await _signup_and_login_owner(client)
+    await _create_user_and_login(client, role="MANAGER")
+    response = await client.get("/api/v1/gst/returns/gstr1/export", params={"return_period": "2026-01"})
+    assert response.status_code == 403
+
+
+async def test_manager_denied_roles_view(client):
+    # Role & Permission Configuration: "No Access" for Manager — Owner only.
+    await _signup_and_login_owner(client)
+    await _create_user_and_login(client, role="MANAGER")
+    response = await client.get(ROLES_ENDPOINT)
+    assert response.status_code == 403

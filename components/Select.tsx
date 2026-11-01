@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { SelectProps } from '../types';
 import { ChevronDown, Check } from 'lucide-react';
 
-const Select: React.FC<SelectProps> = ({ label, options, error, value, onChange, className, disabled, labelClassName }) => {
+const Select: React.FC<SelectProps> = ({ label, options, error, value, onChange, className, disabled, labelClassName, allowAddNew = true }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [newItemValue, setNewItemValue] = useState('');
@@ -73,7 +73,7 @@ const Select: React.FC<SelectProps> = ({ label, options, error, value, onChange,
   };
 
   return (
-    <div className="relative mb-7 md:mb-10 w-full" ref={containerRef}>
+    <div className={`relative mb-7 md:mb-10 w-full ${disabled ? 'opacity-60' : ''}`} ref={containerRef}>
       <div className="relative">
         <input
           ref={inputRef}
@@ -94,7 +94,7 @@ const Select: React.FC<SelectProps> = ({ label, options, error, value, onChange,
             ${error ? 'border-red-500 focus:border-red-500' : 'border-blue-300 focus:border-blue-500 dark:border-gray-600 dark:focus:border-blue-400'}
             placeholder-transparent
             ${className || ''}
-            ${disabled ? 'bg-gray-100 dark:bg-gray-700 cursor-not-allowed' : ''}
+            ${disabled ? 'cursor-not-allowed' : ''}
           `}
           placeholder={label}
           autoComplete="off"
@@ -126,7 +126,6 @@ const Select: React.FC<SelectProps> = ({ label, options, error, value, onChange,
             className={`
                 bg-[#0066ff] hover:bg-blue-700 text-white rounded-sm p-0.5 transition-all duration-200 md:w-5 md:h-5
                 ${isOpen ? 'rotate-180' : ''}
-                ${disabled ? 'opacity-50' : ''}
             `}
           />
         </div>
@@ -155,39 +154,43 @@ const Select: React.FC<SelectProps> = ({ label, options, error, value, onChange,
             )}
           </ul>
 
-          {/* Add New Item Section */}
-          <div className="border-t border-gray-100 dark:border-gray-700 p-2 bg-gray-50 dark:bg-gray-800/50">
-             <div className="relative">
-                <input
-                    type="text"
-                    className="w-full text-[12px] md:text-sm border border-gray-300 dark:border-gray-600 rounded px-2.5 py-1.5 md:px-3 md:py-2 pr-10 focus:outline-none focus:border-blue-400 focus:ring-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                    placeholder="Add new item..."
-                    value={newItemValue}
-                    onChange={(e) => setNewItemValue(e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
-                    onClick={(e) => e.stopPropagation()}
-                    maxLength={20}
-                    onKeyDown={(e) => {
-                        if(e.key === 'Enter') {
-                            handleAddNew(e);
-                        }
-                    }}
-                />
-                <button
-                    type="button"
-                    onClick={handleAddNew}
-                    disabled={!newItemValue.trim()}
-                    className={`
-                        absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded transition-colors flex items-center justify-center
-                        ${newItemValue.trim() 
-                            ? 'bg-[#0066ff] hover:bg-blue-700 text-white' 
-                            : 'bg-gray-100 dark:bg-gray-600 text-gray-300 dark:text-gray-400 cursor-not-allowed'}
-                    `}
-                    title="Add Item"
-                >
-                    <Check size={18} strokeWidth={3} />
-                </button>
-             </div>
-          </div>
+          {/* Add New Item Section — only for creatable fields (fixed-enum
+              fields like a period/comparison picker pass allowAddNew={false}
+              since an ad-hoc value would never be valid there). */}
+          {allowAddNew && (
+            <div className="border-t border-gray-100 dark:border-gray-700 p-2 bg-gray-50 dark:bg-gray-800/50">
+               <div className="relative">
+                  <input
+                      type="text"
+                      className="w-full text-[12px] md:text-sm border border-gray-300 dark:border-gray-600 rounded px-2.5 py-1.5 md:px-3 md:py-2 pr-10 focus:outline-none focus:border-blue-400 focus:ring-0 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      placeholder="Add new item..."
+                      value={newItemValue}
+                      onChange={(e) => setNewItemValue(e.target.value.replace(/[^a-zA-Z\s]/g, ''))}
+                      onClick={(e) => e.stopPropagation()}
+                      maxLength={20}
+                      onKeyDown={(e) => {
+                          if(e.key === 'Enter') {
+                              handleAddNew(e);
+                          }
+                      }}
+                  />
+                  <button
+                      type="button"
+                      onClick={handleAddNew}
+                      disabled={!newItemValue.trim()}
+                      className={`
+                          absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded transition-colors flex items-center justify-center
+                          ${newItemValue.trim()
+                              ? 'bg-[#0066ff] hover:bg-blue-700 text-white'
+                              : 'bg-gray-100 dark:bg-gray-600 text-gray-300 dark:text-gray-400 cursor-not-allowed'}
+                      `}
+                      title="Add Item"
+                  >
+                      <Check size={18} strokeWidth={3} />
+                  </button>
+               </div>
+            </div>
+          )}
         </div>
       )}
 

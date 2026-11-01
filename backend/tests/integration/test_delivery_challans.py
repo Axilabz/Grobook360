@@ -198,7 +198,10 @@ async def test_create_against_cancelled_sales_order(client):
     unit, product, customer = await _setup_basic(client)
     order = await _create_confirmed_sales_order(client, unit, product, customer, "60")
     so_line_id = order["lines"][0]["id"]
-    cancelled = await client.post(f"{ORDERS_ENDPOINT}/{order['id']}/cancel", json={"expected_row_version": order["row_version"]})
+    cancelled = await client.post(
+        f"{ORDERS_ENDPOINT}/{order['id']}/cancel",
+        json={"expected_row_version": order["row_version"], "cancellation_reason": "Testing DC creation against a cancelled order"},
+    )
     assert cancelled.status_code == 200
 
     response = await client.post(DC_ENDPOINT, json=_dc_payload(order["id"], so_line_id, "10"), headers=_idem())

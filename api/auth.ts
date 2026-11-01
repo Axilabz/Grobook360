@@ -9,6 +9,7 @@ export interface AuthUser {
 
 export interface AuthTenant {
   id: string;
+  tenant_code: string;
   business_name: string;
 }
 
@@ -21,6 +22,7 @@ export interface LoginResult {
 export interface MeResult {
   user_id: string;
   tenant_id: string | null;
+  tenant: AuthTenant | null;
   role: string | null;
   permissions: string[];
 }

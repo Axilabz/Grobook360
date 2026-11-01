@@ -423,10 +423,12 @@ async def test_cancel_draft_order(client):
     )
     order = created.json()["data"]
     response = await client.post(
-        f"{ORDERS_ENDPOINT}/{order['id']}/cancel", json={"expected_row_version": order["row_version"]}
+        f"{ORDERS_ENDPOINT}/{order['id']}/cancel",
+        json={"expected_row_version": order["row_version"], "cancellation_reason": "Customer changed their mind"},
     )
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "CANCELLED"
+    assert response.json()["data"]["cancellation_reason"] == "Customer changed their mind"
 
 
 async def test_cancel_confirmed_order(client):
@@ -439,7 +441,8 @@ async def test_cancel_confirmed_order(client):
     confirmed_data = confirmed.json()["data"]
 
     response = await client.post(
-        f"{ORDERS_ENDPOINT}/{order['id']}/cancel", json={"expected_row_version": confirmed_data["row_version"]}
+        f"{ORDERS_ENDPOINT}/{order['id']}/cancel",
+        json={"expected_row_version": confirmed_data["row_version"], "cancellation_reason": "Customer changed their mind"},
     )
     assert response.status_code == 200
     assert response.json()["data"]["status"] == "CANCELLED"
@@ -451,11 +454,15 @@ async def test_prevent_cancel_already_cancelled(client):
         ORDERS_ENDPOINT, json=_valid_order_payload(customer["id"], product["id"], unit["id"]), headers=_idem()
     )
     order = created.json()["data"]
-    first = await client.post(f"{ORDERS_ENDPOINT}/{order['id']}/cancel", json={"expected_row_version": order["row_version"]})
+    first = await client.post(
+        f"{ORDERS_ENDPOINT}/{order['id']}/cancel",
+        json={"expected_row_version": order["row_version"], "cancellation_reason": "Customer changed their mind"},
+    )
     cancelled_data = first.json()["data"]
 
     second = await client.post(
-        f"{ORDERS_ENDPOINT}/{order['id']}/cancel", json={"expected_row_version": cancelled_data["row_version"]}
+        f"{ORDERS_ENDPOINT}/{order['id']}/cancel",
+        json={"expected_row_version": cancelled_data["row_version"], "cancellation_reason": "Retry"},
     )
     assert second.status_code == 422
     assert second.json()["error"]["code"] == "SO-002"
@@ -679,7 +686,8 @@ async def test_sales_order_never_moves_stock(client):
     assert await _available_quantity(client, product["id"]) == "100.000"
 
     cancelled = await client.post(
-        f"{ORDERS_ENDPOINT}/{order['id']}/cancel", json={"expected_row_version": confirmed_data["row_version"]}
+        f"{ORDERS_ENDPOINT}/{order['id']}/cancel",
+        json={"expected_row_version": confirmed_data["row_version"], "cancellation_reason": "Customer changed their mind"},
     )
     assert cancelled.status_code == 200
     assert await _available_quantity(client, product["id"]) == "100.000"

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accounting &amp; GST Engine — Data Flow</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>📘 Accounting &amp; GST Engine — Data Flow</h1>
+    <nav class="chain-nav">
+      <a href="index.html">Index</a>
+      <a href="sales-chain.html">Sales</a>
+      <a href="purchase-chain.html">Purchase</a>
+      <a href="payments-chain.html">Payments</a>
+      <a href="inventory-chain.html">Inventory</a>
+      <a href="payroll-chain.html">Payroll</a>
+      <a href="accounting-gst-engine.html" class="active">Accounting/GST</a>
+      <a href="reports-analysis-chain.html">Reports</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <div class="intro-card">
+      Every chain on the other pages ends by calling into ONE of these two engines. Neither engine is ever called
+      directly by a frontend screen or API endpoint — both are internal services, invoked only from WITHIN another
+      document's own posting/confirm method, in the same DB transaction.
+      <button id="expand-all" style="margin-left:12px;background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Expand all</button>
+      <button id="collapse-all" style="background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Collapse all</button>
+    </div>
+
+    <!-- Stage 1: AccountingPostingService -->
+    <div class="chain-stage">
+      <div class="stage-card open">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge readonly">Engine 1</span> AccountingPostingService → JournalService</div>
+          <div class="stage-sub">Every posting rule resolves through ONE generic double-entry engine</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Called From</div>
+            <ul>
+              <li>Sales: Invoice, Return, Credit/Debit Note</li>
+              <li>Purchase: Invoice, Return</li>
+              <li>Payments: Customer Receipt/Supplier Payment post+reverse</li>
+              <li>Payroll: Finalize Run</li>
+              <li>Inventory: 4 Manual stock actions</li>
+            </ul>
+          </div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>Entry Points</div><code>post_sales_invoice()</code><code>post_purchase_invoice()</code><code>post_payment()</code><code>post_payroll_run()</code><code>post_opening_stock()</code><code>post_stock_increase/decrease()</code><p>Each builds <code>list[JournalLineInput]</code> from the caller's OWN already-calculated totals — never recomputes GST/amounts itself.</p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Core Engine</div><code>JournalService.post_journal()</code><p><code>app/services/accounting/journal_service.py</code> — validates <code>total_debit == total_credit &gt; 0</code>, resolves each line's <code>posting_rule_code</code> to a real account via <code>ChartOfAccountsService.resolve_account()</code>.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">journal_entry</span><span class="table-tag">journal_line</span><span class="table-tag">chart_of_account</span><span class="table-tag">account_mapping</span><p>Idempotent on <code>(tenant_id, source_type, source_id, posting_event_type)</code> — a DB unique constraint, checked before insert AND caught as a race-safe backstop.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><span class="side-tag">Audit</span><p><code>AuditService.record("ACCOUNTING_POSTED")</code>, scoped to the SOURCE document's own entity (not the journal itself) — so that document's own audit-history view shows it.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- posting_rule_code table -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge readonly">Reference</span> Current Chart of Accounts (DEFAULT_ACCOUNT_SEED)</div>
+          <div class="stage-sub">No account id is ever hard-coded — posting logic only ever names a posting_rule_code</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div style="padding:16px 18px;border-top:1px solid #22304d;overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="color:#8b9ac4;text-align:left;text-transform:uppercase;font-size:10.5px;letter-spacing:0.04em;">
+                <th style="padding:5px 9px;">Code</th><th style="padding:5px 9px;">posting_rule_code</th><th style="padding:5px 9px;">Account</th><th style="padding:5px 9px;">Type</th>
+              </tr>
+            </thead>
+            <tbody style="color:#c7d2e8;" id="coa-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 2: GstReportingService -->
+    <div class="chain-stage">
+      <div class="stage-card open">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge readonly">Engine 2</span> GstReportingService → gst_transaction ledger</div>
+          <div class="stage-sub">One sign convention makes period SUM() correct with zero bucket-type special-casing</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Called From</div>
+            <ul>
+              <li>Sales: Invoice, Return, Credit/Debit Note</li>
+              <li>Purchase: Invoice, Return</li>
+            </ul>
+            <p class="none">Never from Payments, Payroll, or Inventory</p>
+          </div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>Entry Points</div><code>record_invoice_transaction()</code><code>record_return_transaction()</code><code>record_credit_debit_note_transaction()</code><code>record_purchase_invoice_transaction()</code><code>record_purchase_return_transaction()</code><p><code>app/services/sales/gst_reporting_service.py</code> — ONE file serves BOTH Sales and Purchase GST, despite its path.</p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Sign Convention</div>
+            <p><strong style="color:#6ee7b7;">Positive:</strong> Sales Invoice, Debit Note, Purchase Invoice (increases GST position)</p>
+            <p><strong style="color:#f9a8d4;">Negative:</strong> Sales Return, Credit Note, Purchase Return (decreases it)</p>
+          </div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">gst_transaction</span><span class="table-tag">gst_transaction_line</span><p>Idempotent on <code>(tenant_id, source_type, source_id, event_type)</code>. The ORIGINAL row is never edited — even if the product's own <code>gst_rate</code> changes later, the snapshot stays frozen.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><span class="side-tag">Audit</span><p><code>GST_TRANSACTION_CREATED</code>/<code>GST_TRANSACTION_REVERSED</code> audit entries, scoped to the source document.</p><p class="none">Zero import of JournalService/AccountingPostingService anywhere under <code>app/services/gst/</code> — the two engines are structurally independent, never calling each other directly.</p></div>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> GSTR-1/GSTR-3B/Dashboard/Reconciliation are all computed ON DEMAND from <code>gst_transaction</code> by <code>GstrService</code> (<code>app/services/gst/gstr_service.py</code>) — no persisted "GST Return" entity, no DRAFT/SUBMITTED status anywhere</div>
+    </div>
+
+    <div class="note-box">⚠ <strong>No COGS/Inventory journal leg exists for the Sales/Purchase chains</strong> — Purchase Invoice still posts to "Purchase Expense" (5010), not "Inventory" (1090). The new <code>INVENTORY</code>/<code>STOCK_ADJUSTMENT</code>/<code>OPENING_BALANCE_EQUITY</code> accounts are used ONLY by the 4 Manual Inventory actions (see the Inventory page) — this is a deliberate, narrow scope decision, not an oversight.</div>
+  </main>
+
+  <footer class="flow-footer">Verified directly against backend source — app/services/accounting/*.py, app/services/sales/gst_reporting_service.py, app/core/accounting_constants.py.</footer>
+
+  <script src="assets/flow.js"></script>
+  <script>
+    const COA = [
+      ["1010","ACCOUNTS_RECEIVABLE","Accounts Receivable","ASSET"],
+      ["1020","CASH_ACCOUNT","Cash-in-Hand","ASSET"],
+      ["1030","BANK_ACCOUNT","Bank Account","ASSET"],
+      ["1040","UPI_ACCOUNT","UPI Clearing Account","ASSET"],
+      ["1050","CHEQUE_ACCOUNT","Cheque Clearing Account","ASSET"],
+      ["1060","INPUT_CGST","Input CGST Receivable","ASSET"],
+      ["1070","INPUT_SGST","Input SGST Receivable","ASSET"],
+      ["1080","INPUT_IGST","Input IGST Receivable","ASSET"],
+      ["1090","INVENTORY","Inventory","ASSET"],
+      ["2010","ACCOUNTS_PAYABLE","Accounts Payable","LIABILITY"],
+      ["2020","OUTPUT_CGST","Output CGST Payable","LIABILITY"],
+      ["2030","OUTPUT_SGST","Output SGST Payable","LIABILITY"],
+      ["2040","OUTPUT_IGST","Output IGST Payable","LIABILITY"],
+      ["2050","SALARY_PAYABLE","Salary Payable","LIABILITY"],
+      ["2060","SALARY_DEDUCTIONS_PAYABLE","Salary Deductions Payable","LIABILITY"],
+      ["3010","OPENING_BALANCE_EQUITY","Opening Balance Equity","EQUITY"],
+      ["4010","SALES_REVENUE","Sales Revenue","REVENUE"],
+      ["4020","SALES_RETURN_ADJUSTMENT","Sales Return / Revenue Adjustment","REVENUE"],
+      ["5010","PURCHASE_EXPENSE","Purchase Expense","EXPENSE"],
+      ["5020","PURCHASE_RETURN_ADJUSTMENT","Purchase Return / Inventory Adjustment","EXPENSE"],
+      ["5030","SALARY_EXPENSE","Salary Expense","EXPENSE"],
+      ["5040","STOCK_ADJUSTMENT","Stock Adjustment","EXPENSE"],
+    ];
+    const tbody = document.getElementById('coa-body');
+    const typeColor = { ASSET: '#6ee7b7', LIABILITY: '#fca5a5', EQUITY: '#93c5fd', REVENUE: '#fde68a', EXPENSE: '#f9a8d4' };
+    COA.forEach(([code, rule, name, type]) => {
+      const tr = document.createElement('tr');
+      tr.style.borderTop = '1px solid #22304d';
+      tr.innerHTML = `<td style="padding:6px 9px;font-family:monospace;">${code}</td><td style="padding:6px 9px;font-family:monospace;color:#93c5fd;">${rule}</td><td style="padding:6px 9px;">${name}</td><td style="padding:6px 9px;color:${typeColor[type]};font-weight:600;">${type}</td>`;
+      tbody.appendChild(tr);
+    });
+  </script>
+</body>
+</html>

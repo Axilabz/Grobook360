@@ -117,7 +117,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onNavigat
     // (PROMPT-006 S27 pattern). The API independently re-checks
     // reports.view_dashboard/etc. regardless (PROMPT-027).
     ...(hasPermission('reports.view_dashboard') || hasPermission('reports.view_sales') ? [{ label: 'Reports', icon: <FileText size={20} /> }] : []),
-    { label: 'Analysis', icon: <BarChart size={20} /> },
+    // Visibility here is UX only — hiding the item is NOT authorization
+    // (PROMPT-006 S27 pattern). The API independently re-checks the same
+    // reports.view_* codes regardless — Analysis has no permission codes
+    // of its own, it's an alternate interactive VIEW over the same
+    // authorized data Reports already exposes.
+    ...(hasPermission('reports.view_dashboard') || hasPermission('reports.view_sales') || hasPermission('reports.view_purchase') || hasPermission('reports.view_inventory')
+      ? [{ label: 'Analysis', icon: <BarChart size={20} /> }] : []),
     // No permission gate — the sync queue is local-device data scoped to
     // this authenticated user/tenant session, not a tenant-wide
     // financial report (PROMPT-028 §42).
@@ -127,6 +133,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onNavigat
     // (PROMPT-006 S27). The API independently re-checks users.view regardless.
     ...(hasPermission('users.view') ? [{ label: 'Users', icon: <Users size={20} /> }] : []),
   ];
+
+  // RBAC Alignment Phase (§5 Sidebar Rules: "Hide a parent module if the
+  // user has no access to any of its child pages", "Do not display empty
+  // sub-menus"). Items/Sales/Purchase/Payments/Accountant always build a
+  // `subItems` key above (possibly an empty array, or `undefined` via the
+  // "if nothing survived, return undefined" pattern) — a leaf item with no
+  // `subItems` key at all (Home, GST Filing, Payroll, Reports, Analysis,
+  // Sync Center, Notification, Users) is already permission-gated by the
+  // spread above and always kept here.
+  const visibleMenuItems = menuItems.filter((item) => {
+    if (!('subItems' in item)) return true;
+    return Array.isArray(item.subItems) && item.subItems.length > 0;
+  });
 
   const handleParentClick = (label: string, hasSubItems: boolean) => {
     // If it has sub-items, toggle the menu
@@ -172,7 +191,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onNavigat
 
   const handleMouseEnter = (e: React.MouseEvent, item: any) => {
     if (!isCollapsed) return;
-    
+
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -201,9 +220,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onNavigat
   // Mobile drawer open: sits above every page's own fixed content header
   // (z-[55], see e.g. ProductManagement.tsx) so it isn't covered by
   // whatever screen is open underneath, but stays below the app's top
-  // Header bar (z-[60]) so that remains reachable. Desktop icon rail
-  // (never an overlay) keeps the original z-50, since nothing else
-  // competes with it there.
+  // Header bar (z-[60]) so that remains reachable. Desktop icon rail is
+  // deliberately ABOVE every page's own content/header (z-[65], above the
+  // app's own top Header bar at z-[60]) so the whole sidebar — the rail,
+  // its collapse toggle, and its collapsed-state hover flyout — always
+  // renders as one consistent front layer, never partially hidden behind
+  // a page's own (inconsistently z-indexed) sticky header. It stays below
+  // modal dialogs (z-[70] and up) so an open modal still covers it.
   //
   // NOTE: any word placed inside the className template literal below —
   // even inside a "/* comment */" — becomes a real, space-separated class
@@ -217,14 +240,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onNavigat
       <aside
         className={`
           fixed left-0 top-16 bottom-0 bg-[#f1f5f9] dark:bg-gray-900
-          transition-none md:transition-all md:duration-300
-          ${isCollapsed ? 'z-50' : 'z-[58] md:z-50'} flex flex-col
+          transition-transform duration-300 md:transition-all
+          ${isCollapsed ? 'z-[65]' : 'z-[58] md:z-[65]'} flex flex-col
           overflow-hidden md:overflow-visible
-          ${isCollapsed ? 'w-0 border-0 md:w-16 md:border-r md:border-gray-200 dark:md:border-gray-700' : 'w-full border-r border-gray-200 dark:border-gray-700 md:w-64'}
+          w-[80vw] max-w-[320px] shadow-xl md:shadow-none
+          ${isCollapsed ? '-translate-x-full md:translate-x-0 border-0 md:w-16 md:border-r md:border-gray-200 dark:md:border-gray-700' : 'translate-x-0 border-r border-gray-200 dark:border-gray-700 md:max-w-none md:w-64'}
         `}
       >
         {/* Toggle Button Container - High z-index to stay above content */}
-        <div className="absolute -right-3 top-2 z-[60] hidden md:block">
+        <div className="absolute -right-3 top-2 z-[66] hidden md:block">
           <button
             onClick={toggleSidebar}
             className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-sm p-0.5 text-gray-600 dark:text-gray-300 shadow-sm transition-colors"
@@ -235,7 +259,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onNavigat
 
         <div className="flex-1 overflow-y-auto py-6 custom-scrollbar overflow-x-hidden relative z-30">
           <ul className="space-y-2 px-2">
-            {menuItems.map((item) => {
+            {visibleMenuItems.map((item) => {
               const isOpen = openMenus.includes(item.label);
               const isActive = activeParent === item.label;
               
@@ -315,10 +339,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleSidebar, onNavigat
         </div>
       </aside>
 
-      {/* Tooltip / Hover Menu for Collapsed Sidebar (Desktop Only) */}
+      {/* Tooltip / Hover Menu for Collapsed Sidebar (Desktop Only) — part of
+          the same front layer as the icon rail/toggle above (z-[67], one
+          step above them), so it renders cleanly on top of a page's own
+          header or content wherever it lands next to the hovered icon,
+          exactly like any standard flyout/popover. Still below modal
+          dialogs (z-[70]+). */}
       {isCollapsed && hoveredItem && (
         <div
-          className="fixed left-16 z-50 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-r-lg shadow-xl animate-fade-in hidden md:block overflow-hidden"
+          className="fixed left-16 z-[67] w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-r-lg shadow-xl animate-fade-in hidden md:block overflow-hidden"
           style={{ top: hoveredItem.top }}
           onMouseEnter={() => {
              if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);

@@ -127,3 +127,9 @@ export async function apiRequestList<T>(path: string, options: RequestOptions = 
   const { payload } = await rawRequest(path, options);
   return payload as ApiList<T>;
 }
+
+/** For endpoints whose `meta` carries caller-relevant info beyond correlation_id/timestamp (e.g. the Analysis API's server-resolved date range) — returns both `data` and `meta` instead of discarding `meta`. */
+export async function apiRequestWithMeta<T, M = Record<string, unknown>>(path: string, options: RequestOptions = {}): Promise<{ data: T; meta: M }> {
+  const { payload } = await rawRequest(path, options);
+  return payload as { data: T; meta: M };
+}

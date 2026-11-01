@@ -386,6 +386,21 @@ async def payment_method_summary(
     return {"data": _jsonify(items), "meta": _meta()}
 
 
+@router.get("/payments/daily-collection")
+async def daily_collection_report(
+    date_from: date | None = None, date_to: date | None = None,
+    context: AuthenticatedContext = Depends(require_permission(REPORTS_VIEW_PAYMENTS)), session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    """Day-grouped Customer Receipts (money IN only), each day carrying its
+    own entries (receipt #, customer, collected-by, method, amount) plus a
+    daily subtotal — reuses the existing REPORTS_VIEW_PAYMENTS permission,
+    no new permission needed (same scope as the Payment Register above)."""
+    tenant_id = _require_tenant(context)
+    _validate_range(date_from, date_to)
+    days = await PaymentReportService(session).daily_collection_report(tenant_id=tenant_id, date_from=date_from, date_to=date_to)
+    return {"data": _jsonify(days), "meta": _meta()}
+
+
 @router.get("/payments/cheques")
 async def cheque_report(
     page: int = 1, page_size: int = 25, cheque_status: str | None = None,

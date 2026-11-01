@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sales Chain — Data Flow</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>🧾 Sales Chain — Data Flow</h1>
+    <nav class="chain-nav">
+      <a href="index.html">Index</a>
+      <a href="sales-chain.html" class="active">Sales</a>
+      <a href="purchase-chain.html">Purchase</a>
+      <a href="payments-chain.html">Payments</a>
+      <a href="inventory-chain.html">Inventory</a>
+      <a href="payroll-chain.html">Payroll</a>
+      <a href="accounting-gst-engine.html">Accounting/GST</a>
+      <a href="reports-analysis-chain.html">Reports</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <div class="intro-card">
+      Estimate → Sales Order → Delivery Challan → Sales Invoice is the full document chain; Sales Return and
+      Credit/Debit Note both branch off a <strong>POSTED</strong> Sales Invoice. Only 3 of these 6 document types
+      ever move stock (Delivery Challan, direct Sales Invoice, Sales Return); only 2 ever touch Accounting + GST
+      (Sales Invoice, Sales Return, Credit/Debit Note). E-Invoice/E-Way Bill generation is always a separate,
+      manual action — never triggered automatically by posting the invoice.
+      <button id="expand-all" style="margin-left:12px;background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Expand all</button>
+      <button id="collapse-all" style="background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Collapse all</button>
+    </div>
+
+    <!-- Stage 1: Sales Estimate -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">1</span> Sales Estimate — Create</div>
+          <div class="stage-sub">No stock, accounting, or GST impact — a pre-sales document only</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>EstimateManagement.tsx</code><p>"New Estimate" — pick customer, add product lines (reuses <code>ProductLineSelector</code>).</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /sales/estimates</code><p>Router: <code>app/api/v1/sales_estimates.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>EstimateService.create_estimate()</code><p><code>app/services/sales/estimate_service.py</code> — calls <code>GstCalculationService</code> + <code>DocumentNumberingService</code> (format <code>EST-{FY}-0001</code>).</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">sales_estimate</span><span class="table-tag">sales_estimate_line</span></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><p class="none">None</p></div>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> Owner/Manager clicks "Convert to Sales Order" on an ACCEPTED estimate — <code>POST /sales/estimates/{id}/convert-to-sales-order</code> (gated by <code>sales_estimate.convert</code>) atomically creates a real <code>sales_order</code> row, copying the estimate's own priced lines verbatim (never re-priced)</div>
+    </div>
+
+    <!-- Stage 2: Sales Order -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">2</span> Sales Order — Confirm</div>
+          <div class="stage-sub">Never touches inventory — confirming only unlocks Delivery Challan creation</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>SalesOrderManagement.tsx</code><p>"Confirm" button on a DRAFT order (Owner/Manager only).</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /sales/orders/{order_id}/confirm</code><p>Router: <code>app/api/v1/sales_orders.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>SalesOrderService.confirm_order()</code><p><code>app/services/sales/sales_order_service.py</code> — zero <code>InventoryService</code> import anywhere in this file, verified by a dedicated test.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">sales_order</span><span class="table-tag">sales_order_line</span><p>Status DRAFT → CONFIRMED only.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><p class="none">None — by design</p></div>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> A CONFIRMED Sales Order can now have a Delivery Challan created against it</div>
+    </div>
+
+    <!-- Stage 3: Delivery Challan -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">3</span> Delivery Challan — Confirm &amp; Dispatch</div>
+          <div class="stage-sub">The FIRST stage in this chain that moves stock</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>DeliveryChallanManagement.tsx</code><p>"Confirm" on a DRAFT challan (Owner/Manager only).</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /sales/delivery-challans/{challan_id}/confirm</code><p>Router: <code>app/api/v1/delivery_challans.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>DeliveryChallanService.confirm_challan()</code><p><code>app/services/sales/delivery_challan_service.py</code></p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">delivery_challan</span><span class="table-tag">delivery_challan_line</span><span class="table-tag">sales_order_line</span><p><code>sales_order_line.delivered_quantity</code> incremented; SO status → PARTIALLY_FULFILLED/FULFILLED.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div>
+            <span class="side-tag">Stock Ledger</span>
+            <p><code>InventoryService.post_movement(STOCK_OUT, source_type=DELIVERY_CHALLAN)</code> — one per line, into <code>stock_ledger_entry</code>. No Accounting or GST call anywhere in this file.</p>
+          </div>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> <code>POST /sales/delivery-challans/{id}/create-invoice</code> prices the invoice from the ORIGINATING Sales Order line (challan itself carries no price/GST columns)</div>
+    </div>
+
+    <!-- Stage 4: Sales Invoice -->
+    <div class="chain-stage">
+      <div class="stage-card open">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">4</span> Sales Invoice — Post</div>
+          <div class="stage-sub">The authoritative billing transaction — triggers Accounting + GST in the SAME transaction</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>SalesInvoiceManagement.tsx</code><p>"Post Invoice" on a DRAFT invoice (Owner/Manager only — Salesperson can create/edit/cancel a draft but never post).</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /sales/invoices/{invoice_id}/post</code><p>Router: <code>app/api/v1/sales_invoices.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>SalesInvoiceService.post_invoice()</code><p><code>app/services/sales/sales_invoice_service.py:642-752</code> — branches on <code>invoice_type</code>.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">sales_invoice</span><span class="table-tag">sales_invoice_line</span><span class="table-tag">delivery_challan_line</span><p>Status DRAFT → POSTED (immutable from here); if DC-based, <code>delivery_challan_line.invoiced_quantity</code> incremented instead of moving stock again.</p></div>
+          <div class="lane lane-side">
+            <div class="lane-label"><span class="dot"></span>Side-Effects (in exact order)</div>
+            <ol style="margin:4px 0;padding-left:16px;font-size:12.5px;color:#aab6d6;line-height:1.6;">
+              <li><strong>IF DIRECT_SALES_INVOICE:</strong> <span class="side-tag">Stock Ledger</span> <code>InventoryService.post_movement(STOCK_OUT, source_type=SALES_INVOICE)</code> per line. <strong>IF DELIVERY_CHALLAN_SALES_INVOICE:</strong> none — the Challan already moved it.</li>
+              <li><span class="side-tag">Accounting</span> <code>AccountingPostingService.post_sales_invoice()</code> — DR Accounts Receivable / CR Sales Revenue + Output CGST/SGST/IGST → real <code>journal_entry</code>/<code>journal_line</code> rows.</li>
+              <li><span class="side-tag">GST</span> <code>GstReportingService.record_invoice_transaction()</code> — writes <code>gst_transaction</code>/<code>gst_transaction_line</code> (positive sign).</li>
+              <li><span class="side-tag">Audit</span> <code>AuditService.record("SALES_INVOICE_POSTED")</code></li>
+            </ol>
+            <p>All 4 steps run inside <code>post_invoice()</code> itself — one DB transaction, not a queue or async step.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage-connector"><span class="arrow">↘</span> Separate, manual action from the invoice's own detail screen — never auto-triggered by posting</div>
+
+      <div class="stage-card" style="margin-top:10px;">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge">4b</span> E-Invoice / E-Way Bill — Generate</div>
+          <div class="stage-sub">Owner/Manager only — Salesperson sees status but cannot generate/cancel</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>EinvoiceEwayBillPanel.tsx</code><p>Mounted inside the Sales Invoice detail view (POSTED invoices only).</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /sales/invoices/{id}/einvoice/generate</code><code>POST /eway-bills/generate</code><p>Routers: <code>app/api/v1/einvoice.py</code>, <code>app/api/v1/eway_bills.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>EInvoiceService.generate()</code><code>EWayBillService.generate()</code><p><code>app/services/gst_integration/</code> — calls the (sandbox-only) GST/NIC provider.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">einvoice</span><span class="table-tag">eway_bill</span><span class="table-tag">integration_operation</span><p>IRN/QR (e-invoice) denormalized back onto <code>sales_invoice</code>'s own reserved columns.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><p>External provider call (<code>SandboxSimulatorProvider</code> — no real GST/NIC integration exists). No Accounting/GST-ledger impact — this is a compliance document, not a financial posting.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note-box">⚠ Both Sales Return and Credit/Debit Note below require a source <strong>POSTED</strong> Sales Invoice — there is no standalone/ad-hoc path for either.</div>
+
+    <!-- Stage 5: Sales Return -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">5</span> Sales Return — Confirm</div>
+          <div class="stage-sub">Inventory-only reversal — structurally separate from Credit Note</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>SalesReturnManagement.tsx</code><p>Or the "Create Sales Return" shortcut on a POSTED invoice's own detail view.</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /sales/returns/{return_id}/confirm</code><p>Router: <code>app/api/v1/sales_returns.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>SalesReturnService.confirm_return()</code><p><code>app/services/sales/sales_return_service.py:531-651</code> — pricing prorated from the source invoice line.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">sales_return</span><span class="table-tag">sales_return_line</span><span class="table-tag">sales_invoice_line</span><p><code>sales_invoice_line.returned_quantity</code> incremented.</p></div>
+          <div class="lane lane-side">
+            <div class="lane-label"><span class="dot"></span>Side-Effects (in order)</div>
+            <ol style="margin:4px 0;padding-left:16px;font-size:12.5px;color:#aab6d6;line-height:1.6;">
+              <li><span class="side-tag">Stock Ledger</span> <code>post_movement(STOCK_IN, source_type=SALES_RETURN)</code> per line.</li>
+              <li><span class="side-tag">Accounting</span> <code>AccountingPostingService.post_sales_return()</code> — mirror of the invoice entry.</li>
+              <li><span class="side-tag">GST</span> <code>GstReportingService.record_return_transaction()</code> — <strong>negative</strong> sign, so a period sum nets correctly.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 6: Credit/Debit Note -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">6</span> Credit / Debit Note — Post</div>
+          <div class="stage-sub">A PURE financial/GST adjustment — structurally zero stock impact</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>CreditDebitNoteManagement.tsx</code><p>Separate "Credit Note"/"Debit Note" create buttons, one shared form.</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /sales/credit-debit-notes/{note_id}/post</code><p>Router: <code>app/api/v1/credit_debit_notes.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>CreditDebitNoteService.post_note()</code><p><code>app/services/sales/credit_debit_note_service.py:525-623</code> — <strong>zero <code>InventoryService</code> import in this file</strong>, verified.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">credit_debit_note</span><span class="table-tag">credit_debit_note_line</span><span class="table-tag">sales_invoice_line</span><p><code>credited_quantity</code>/<code>debited_quantity</code> incremented per note type.</p></div>
+          <div class="lane lane-side">
+            <div class="lane-label"><span class="dot"></span>Side-Effects (in order)</div>
+            <ol style="margin:4px 0;padding-left:16px;font-size:12.5px;color:#aab6d6;line-height:1.6;">
+              <li><span class="side-tag">Accounting</span> <code>AccountingPostingService.post_credit_debit_note()</code></li>
+              <li><span class="side-tag">GST</span> <code>GstReportingService.record_credit_debit_note_transaction()</code></li>
+            </ol>
+            <p class="none">No Stock Ledger entry — ever.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="flow-footer">Verified directly against backend source — app/services/sales/*.py, app/api/v1/*.py.</footer>
+
+  <script src="assets/flow.js"></script>
+</body>
+</html>

@@ -11,6 +11,7 @@ import { ApiError } from '../api/client';
 import {
   SalesOrderListItem,
   SalesOrderDetail,
+  SalesOrderLine,
   listSalesOrders,
   getSalesOrder,
   createSalesOrder,
@@ -20,6 +21,7 @@ import {
 import { Customer } from '../api/customers';
 import CustomerSelector from '../shared/CustomerSelector';
 import ProductLineSelector, { SalesLineDraft } from '../shared/ProductLineSelector';
+import { getProduct, ProductDetail } from '../api/products';
 
 const STATUS_BADGE: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -314,6 +316,26 @@ interface DetailPermissions {
   canConfirm: boolean; canCancel: boolean;
 }
 
+interface StockCheck {
+  required: number;
+  available: number;
+}
+
+// Converts a Sales Order line's quantity (in whatever UOM the line used)
+// into the product's base-UOM equivalent, the same unit `stock_qty_cache`
+// is tracked in — mirrors InventoryService._conversion_factor's own
+// from_uom->base_uom lookup. Falls back to a raw (unconverted) comparison
+// if no matching conversion is on file, rather than silently skipping the
+// check.
+function requiredBaseQuantity(line: SalesOrderLine, product: ProductDetail): number {
+  const qty = Number(line.quantity);
+  if (line.uom.id === product.base_uom.id) return qty;
+  const conversion = product.unit_conversions.find(
+    (c) => c.from_uom.id === line.uom.id && c.to_uom.id === product.base_uom.id
+  );
+  return conversion ? qty * Number(conversion.conversion_factor) : qty;
+}
+
 const OrderDetailModal: React.FC<{ orderId: string; onClose: () => void; onChanged: () => void; permissions: DetailPermissions }> = ({
   orderId, onClose, onChanged, permissions,
 }) => {
@@ -321,13 +343,40 @@ const OrderDetailModal: React.FC<{ orderId: string; onClose: () => void; onChang
   const [order, setOrder] = useState<SalesOrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [confirmAction, setConfirmAction] = useState<'cancel' | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
   const [isActing, setIsActing] = useState(false);
+  const [stockChecks, setStockChecks] = useState<Record<string, StockCheck>>({});
+
+  const checkStock = useCallback(async (data: SalesOrderDetail) => {
+    // Only DRAFT orders are still awaiting confirm — no need to check
+    // stock for an order that's already CONFIRMED or CANCELLED.
+    if (data.status !== 'DRAFT') {
+      setStockChecks({});
+      return;
+    }
+    try {
+      const entries = await Promise.all(
+        data.lines
+          .filter((line): line is SalesOrderLine & { product_id: string } => Boolean(line.product_id))
+          .map(async (line) => {
+            const product = await getProduct(line.product_id);
+            return [line.id, { required: requiredBaseQuantity(line, product), available: Number(product.stock_qty_cache) }] as const;
+          })
+      );
+      setStockChecks(Object.fromEntries(entries) as Record<string, StockCheck>);
+    } catch {
+      // Best-effort — if a stock lookup fails, don't block the whole
+      // screen; the Confirm button simply won't be stock-gated this time.
+      setStockChecks({});
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await getSalesOrder(orderId);
       setOrder(data);
+      await checkStock(data);
     } catch {
       showToast('Failed to load sales order.', 'error');
     } finally {
@@ -362,6 +411,7 @@ const OrderDetailModal: React.FC<{ orderId: string; onClose: () => void; onChang
   }
 
   const allowed = (action: keyof typeof ACTION_ALLOWED_FROM) => ACTION_ALLOWED_FROM[action].includes(order.status);
+  const hasInsufficientStock = Object.values(stockChecks).some((s: StockCheck) => s.available < s.required);
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-fade-in">
@@ -406,18 +456,29 @@ const OrderDetailModal: React.FC<{ orderId: string; onClose: () => void; onChang
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {order.lines.map((line) => (
-                  <tr key={line.id}>
-                    <td className="py-2 pr-2">{line.description}</td>
-                    <td className="py-2 pr-2">{line.hsn_code || '—'}</td>
-                    <td className="py-2 pr-2">{line.quantity} {line.uom.code}</td>
-                    <td className="py-2 pr-2">₹{line.unit_price}</td>
-                    <td className="py-2 pr-2">₹{line.discount_amount}</td>
-                    <td className="py-2 pr-2">₹{line.taxable_amount}</td>
-                    <td className="py-2 pr-2">₹{(Number(line.cgst_amount) + Number(line.sgst_amount) + Number(line.igst_amount)).toFixed(2)}</td>
-                    <td className="py-2 font-medium">₹{line.line_total}</td>
-                  </tr>
-                ))}
+                {order.lines.map((line) => {
+                  const stock = stockChecks[line.id];
+                  const isShort = stock && stock.available < stock.required;
+                  return (
+                    <tr key={line.id} className={isShort ? 'bg-red-50 dark:bg-red-900/20' : undefined}>
+                      <td className="py-2 pr-2">
+                        {line.description}
+                        {isShort && (
+                          <div className="flex items-center gap-1 text-[11px] text-red-600 dark:text-red-400 mt-0.5">
+                            <AlertTriangle size={11} /> Only {stock.available} in stock — needs {stock.required}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2 pr-2">{line.hsn_code || '—'}</td>
+                      <td className={`py-2 pr-2 ${isShort ? 'text-red-600 dark:text-red-400 font-medium' : ''}`}>{line.quantity} {line.uom.code}</td>
+                      <td className="py-2 pr-2">₹{line.unit_price}</td>
+                      <td className="py-2 pr-2">₹{line.discount_amount}</td>
+                      <td className="py-2 pr-2">₹{line.taxable_amount}</td>
+                      <td className="py-2 pr-2">₹{(Number(line.cgst_amount) + Number(line.sgst_amount) + Number(line.igst_amount)).toFixed(2)}</td>
+                      <td className="py-2 font-medium">₹{line.line_total}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -435,19 +496,32 @@ const OrderDetailModal: React.FC<{ orderId: string; onClose: () => void; onChang
           </div>
 
           {order.notes && <p className="text-gray-600 dark:text-gray-300"><span className="text-gray-400 text-[12px] uppercase block">Notes</span>{order.notes}</p>}
+          {order.cancellation_reason && (
+            <p className="text-gray-600 dark:text-gray-300"><span className="text-gray-400 text-[12px] uppercase block">Cancellation Reason</span>{order.cancellation_reason}</p>
+          )}
 
           <div className="flex flex-wrap gap-2 pt-2">
             {permissions.canConfirm && allowed('confirm') && (
-              <button disabled={isActing} onClick={() => runAction(() => confirmSalesOrder(order.id, order.row_version), 'Sales order confirmed.')} className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-green-300 dark:border-green-800 text-green-600 text-[13px] font-medium">
+              <button
+                disabled={isActing || hasInsufficientStock}
+                title={hasInsufficientStock ? 'Cannot confirm — one or more lines exceed available stock' : undefined}
+                onClick={() => runAction(() => confirmSalesOrder(order.id, order.row_version), 'Sales order confirmed.')}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-green-300 dark:border-green-800 text-green-600 text-[13px] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <CheckCircle2 size={14} /> Confirm
               </button>
             )}
             {permissions.canCancel && allowed('cancel') && (
-              <button disabled={isActing} onClick={() => setConfirmAction('cancel')} className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-[13px] font-medium">
+              <button disabled={isActing} onClick={() => { setCancelReason(''); setConfirmAction('cancel'); }} className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-[13px] font-medium">
                 <Ban size={14} /> Cancel
               </button>
             )}
           </div>
+          {hasInsufficientStock && (
+            <p className="flex items-center gap-1.5 text-[12px] text-red-600 dark:text-red-400">
+              <AlertTriangle size={12} /> One or more lines exceed available stock — reduce the quantity or restock before confirming.
+            </p>
+          )}
         </div>
       </div>
 
@@ -458,14 +532,23 @@ const OrderDetailModal: React.FC<{ orderId: string; onClose: () => void; onChang
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30 shrink-0"><AlertTriangle size={20} className="text-amber-600 dark:text-amber-400" /></div>
               <h3 className="text-[17px] font-semibold text-gray-900 dark:text-white">Cancel Sales Order</h3>
             </div>
-            <p className="text-[14px] text-gray-600 dark:text-gray-300 mb-6">
+            <p className="text-[14px] text-gray-600 dark:text-gray-300 mb-4">
               This sales order will be cancelled and can no longer be actioned. No stock was ever reserved by this order, so nothing needs to be reversed.
             </p>
+            <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1.5">Reason for cancellation</label>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              rows={3}
+              placeholder="Why is this order being cancelled?"
+              className="w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-[14px] px-3 py-2 mb-6 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => setConfirmAction(null)} className="py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-[14px] font-medium">Back</button>
               <button
-                onClick={() => runAction(() => cancelSalesOrder(order.id, order.row_version), 'Sales order cancelled.')}
-                className="py-2.5 rounded-lg bg-[#0066ff] hover:bg-blue-700 text-white text-[14px] font-medium"
+                disabled={isActing || !cancelReason.trim()}
+                onClick={() => runAction(() => cancelSalesOrder(order.id, order.row_version, cancelReason.trim()), 'Sales order cancelled.')}
+                className="py-2.5 rounded-lg bg-[#0066ff] hover:bg-blue-700 text-white text-[14px] font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Confirm
               </button>

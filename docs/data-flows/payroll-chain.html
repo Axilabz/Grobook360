@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payroll Chain — Data Flow</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>🧑‍🏭 Payroll Chain — Data Flow</h1>
+    <nav class="chain-nav">
+      <a href="index.html">Index</a>
+      <a href="sales-chain.html">Sales</a>
+      <a href="purchase-chain.html">Purchase</a>
+      <a href="payments-chain.html">Payments</a>
+      <a href="inventory-chain.html">Inventory</a>
+      <a href="payroll-chain.html" class="active">Payroll</a>
+      <a href="accounting-gst-engine.html">Accounting/GST</a>
+      <a href="reports-analysis-chain.html">Reports</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <div class="intro-card">
+      Employee/Salary/Attendance/Leave are all master-data/period inputs that feed ONE calculation engine. M1 Basic
+      Payroll only — zero PF/ESI/TDS anywhere in this chain. Owner/Manager only; Salesperson has no access at all.
+      Posts exactly ONE consolidated accounting journal per run (never per-employee).
+      <button id="expand-all" style="margin-left:12px;background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Expand all</button>
+      <button id="collapse-all" style="background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Collapse all</button>
+    </div>
+
+    <!-- Stage 1: Inputs -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge readonly">Inputs</span> Employee, Salary Structure, Attendance, Leave</div>
+          <div class="stage-sub">Master data / period inputs — no accounting impact on their own</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>PayrollManagement.tsx</code><p>Employees / Attendance / Leave tabs.</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /employees</code><code>POST /employees/{id}/salary-structures</code><code>POST /attendance</code><code>POST /leave</code><p>Router: <code>app/api/v1/payroll.py</code> (no path prefix — registered directly at <code>/api/v1</code>)</p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>app/services/payroll/*.py</code><p>Employee/Salary/Attendance/Leave services — Salary Structure is effective-dated (no <code>effective_to</code> column by design, so a later structure can never retroactively change an already-finalized run).</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">employee</span><span class="table-tag">salary_structure</span><span class="table-tag">salary_structure_line</span><span class="table-tag">attendance</span><span class="table-tag">leave_request</span></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><p class="none">None</p></div>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> Employee Code uses <code>DocumentNumberingService.next_number_no_fy()</code> — the ONE identifier in this codebase that must never reset annually</div>
+    </div>
+
+    <!-- Stage 2: Calculate -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">1</span> Payroll Run — Calculate</div>
+          <div class="stage-sub">One unified proration formula for mid-period joining, exit, and unpaid leave</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>PayrollManagement.tsx</code><p>"New Run" → "Calculate".</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /payroll/runs</code><code>POST /payroll/runs/{run_id}/calculate</code></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>PayrollRunService.calculate_run()</code><p><code>app/services/payroll/payroll_run_service.py</code> — formula: <code>payable_days / calendar_days</code>, applied identically to earnings AND deductions.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">payroll_run</span><span class="table-tag">payroll_record</span><span class="table-tag">payroll_record_line</span><p>Wipes and rewrites <code>payroll_record</code>/<code>payroll_record_line</code> each time it's recalculated. Status → CALCULATED. <code>payroll_record</code> IS the payslip — no separate payslip table.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><p class="none">None yet — calculation is still a draft, reusable/re-runnable</p></div>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> Finalize is the ONLY irreversible, accounting-triggering step</div>
+    </div>
+
+    <!-- Stage 3: Finalize -->
+    <div class="chain-stage">
+      <div class="stage-card open">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">2</span> Payroll Run — Finalize</div>
+          <div class="stage-sub">Assigns payslip numbers and posts ONE consolidated journal for the whole run</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>PayrollManagement.tsx</code><p>"Finalize" (Owner/Manager only, requires CALCULATED status).</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /payroll/runs/{run_id}/finalize</code></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>PayrollRunService.finalize_run()</code><p>Atomic: locks run → requires CALCULATED + employee_count&gt;0 → assigns <code>payslip_number</code> per record (format <code>PAYSLIP-{FY}-0001</code>) → calls AccountingPostingService → flips statuses.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">payroll_run</span><span class="table-tag">payroll_record</span><span class="table-tag">payroll_period</span><p>Run status → FINALIZED, stores <code>accounting_posting_reference</code>; each record → FINALIZED; period → FINALIZED.</p></div>
+          <div class="lane lane-side">
+            <div class="lane-label"><span class="dot"></span>Side-Effects</div>
+            <span class="side-tag">Accounting</span>
+            <p><code>AccountingPostingService.post_payroll_run(total_gross, total_deductions, total_net, ...)</code> — DR Salary Expense (gross) / CR Salary Deductions Payable (if &gt;0) / CR Salary Payable (net). <strong>Consolidated — one journal per RUN, never per employee.</strong> No PF/ESI/TDS line exists anywhere.</p>
+            <p class="none">Zero Stock Ledger or GST interaction anywhere in this file.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="flow-footer">Verified directly against backend source — app/services/payroll/payroll_run_service.py, app/api/v1/payroll.py.</footer>
+
+  <script src="assets/flow.js"></script>
+</body>
+</html>

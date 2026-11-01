@@ -50,6 +50,7 @@ export interface SalesOrderDetail extends SalesOrderListItem {
   igst_total: string;
   tax_total: string;
   notes: string | null;
+  cancellation_reason: string | null;
   lines: SalesOrderLine[];
 }
 
@@ -120,12 +121,11 @@ export async function updateSalesOrder(orderId: string, payload: UpdateSalesOrde
   return apiRequest<SalesOrderDetail>(`/sales/orders/${orderId}`, { method: 'PATCH', body: payload });
 }
 
-async function postAction(orderId: string, action: string, expectedRowVersion: number): Promise<SalesOrderDetail> {
-  return apiRequest<SalesOrderDetail>(`/sales/orders/${orderId}/${action}`, {
-    method: 'POST',
-    body: { expected_row_version: expectedRowVersion },
-  });
+async function postAction(orderId: string, action: string, body: Record<string, unknown>): Promise<SalesOrderDetail> {
+  return apiRequest<SalesOrderDetail>(`/sales/orders/${orderId}/${action}`, { method: 'POST', body });
 }
 
-export const confirmSalesOrder = (id: string, rowVersion: number) => postAction(id, 'confirm', rowVersion);
-export const cancelSalesOrder = (id: string, rowVersion: number) => postAction(id, 'cancel', rowVersion);
+export const confirmSalesOrder = (id: string, rowVersion: number) =>
+  postAction(id, 'confirm', { expected_row_version: rowVersion });
+export const cancelSalesOrder = (id: string, rowVersion: number, cancellationReason: string) =>
+  postAction(id, 'cancel', { expected_row_version: rowVersion, cancellation_reason: cancellationReason });

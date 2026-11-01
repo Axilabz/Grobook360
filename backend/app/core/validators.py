@@ -34,6 +34,13 @@ _HSN_PATTERN = re.compile(r"^[0-9]{4}$|^[0-9]{6}$|^[0-9]{8}$")
 # product.sku column length). Auto-uppercased by the caller before checking.
 _SKU_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9_-]{0,49}$")
 
+# Standard 10-character Indian PAN: 5 letters, 4 digits, 1 letter.
+_PAN_PATTERN = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]{1}$")
+
+# Standard 11-character bank IFSC code: 4-letter bank code, '0', 6
+# alphanumeric branch code.
+_IFSC_PATTERN = re.compile(r"^[A-Z]{4}0[A-Z0-9]{6}$")
+
 
 def is_valid_gstin(value: str) -> bool:
     return bool(_GSTIN_PATTERN.match(value))
@@ -61,3 +68,11 @@ def is_valid_hsn(value: str) -> bool:
 
 def is_valid_sku(value: str) -> bool:
     return bool(_SKU_PATTERN.match(value))
+
+
+def is_valid_pan(value: str) -> bool:
+    return bool(_PAN_PATTERN.match(value))
+
+
+def is_valid_ifsc(value: str) -> bool:
+    return bool(_IFSC_PATTERN.match(value))

@@ -268,3 +268,19 @@ export interface AdjustmentEligibility {
 export async function getAdjustmentEligibility(invoiceId: string): Promise<AdjustmentEligibility> {
   return apiRequest<AdjustmentEligibility>(`/sales/invoices/${invoiceId}/adjustment-eligibility`);
 }
+
+// --- Payment history (collections recorded against this invoice) ---
+
+export interface PaymentHistoryEntry {
+  payment_id: string;
+  payment_number: string;
+  payment_date: string;
+  amount: string;
+  payment_method: string;
+  status: string;
+  collected_by_name: string | null;
+}
+
+export async function getInvoicePaymentHistory(invoiceId: string): Promise<PaymentHistoryEntry[]> {
+  return apiRequest<PaymentHistoryEntry[]>(`/sales/invoices/${invoiceId}/payment-history`);
+}

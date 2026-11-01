@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reports &amp; Analysis (Read Path) — Data Flow</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>🔎 Reports &amp; Analysis (Read Path) — Data Flow</h1>
+    <nav class="chain-nav">
+      <a href="index.html">Index</a>
+      <a href="sales-chain.html">Sales</a>
+      <a href="purchase-chain.html">Purchase</a>
+      <a href="payments-chain.html">Payments</a>
+      <a href="inventory-chain.html">Inventory</a>
+      <a href="payroll-chain.html">Payroll</a>
+      <a href="accounting-gst-engine.html">Accounting/GST</a>
+      <a href="reports-analysis-chain.html" class="active">Reports</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <div class="intro-card">
+      Every page on this site so far is a WRITE path. This one is the opposite: Reports, Analysis, and the Dashboard
+      never write anything — they are live SQL aggregations over the already-authoritative tables every other chain
+      produces. <strong>Zero new business tables were ever introduced for reporting</strong> — this is a structural
+      rule, not a convention: no persisted/materialized report table, no recalculated business/accounting/GST value
+      a source module already computed.
+      <button id="expand-all" style="margin-left:12px;background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Expand all</button>
+      <button id="collapse-all" style="background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Collapse all</button>
+    </div>
+
+    <!-- Stage 1: Dashboard -->
+    <div class="chain-stage">
+      <div class="stage-card open">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge readonly">Read</span> Dashboard (Home)</div>
+          <div class="stage-sub">KPIs reconciled with detailed reports BY CONSTRUCTION — same method, same date range</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>Home.tsx</code><p>Lands here on login — Net Sales, Receivables/Payables Outstanding, Low/Out-of-Stock, Recent Transactions.</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>GET /reports/dashboard</code><code>GET /reports/dashboard/alerts</code><code>GET /reports/dashboard/recent-transactions</code></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>DashboardService.get_dashboard()</code><p><code>app/services/reports/dashboard_service.py</code> — internally calls the SAME <code>SalesReportService</code>/<code>PurchaseReportService</code>/<code>ReceivablesPayablesService</code> methods the detailed reports below call, never a second parallel calculation.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Reads From</div><span class="table-tag">sales_invoice</span><span class="table-tag">purchase_invoice</span><span class="table-tag">payment</span><span class="table-tag">stock_ledger_entry</span><span class="table-tag">gst_transaction</span><p>Nothing is ever written back.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><p class="none">None — GET requests are not audited (no precedent anywhere in this codebase for auditing reads)</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage 2: Reports module -->
+    <div class="chain-stage">
+      <div class="stage-card open">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge readonly">Read</span> Reports (9 families, 26 endpoints)</div>
+          <div class="stage-sub">Sales · Purchase · Inventory · Receivables · Payables · Payments · Accounting · GST</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div style="padding:16px 18px;border-top:1px solid #22304d;overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+            <thead>
+              <tr style="color:#8b9ac4;text-align:left;text-transform:uppercase;font-size:10.5px;letter-spacing:0.04em;">
+                <th style="padding:6px 10px;">Report family</th><th style="padding:6px 10px;">Service file</th><th style="padding:6px 10px;">Reads from</th>
+              </tr>
+            </thead>
+            <tbody style="color:#c7d2e8;">
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Sales (Summary/Register/Customer-wise/Product-wise/Returns)</td><td style="padding:7px 10px;font-family:monospace;color:#93c5fd;">sales_report_service.py</td><td style="padding:7px 10px;"><span class="table-tag">sales_invoice</span><span class="table-tag">sales_return</span><span class="table-tag">credit_debit_note</span></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Purchase (Summary/Register/Supplier-wise/Product-wise/Returns)</td><td style="padding:7px 10px;font-family:monospace;color:#93c5fd;">purchase_report_service.py</td><td style="padding:7px 10px;"><span class="table-tag">purchase_invoice</span><span class="table-tag">purchase_return</span></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Inventory (Current Stock/Movements/Product History)</td><td style="padding:7px 10px;font-family:monospace;color:#93c5fd;">inventory_report_service.py</td><td style="padding:7px 10px;"><span class="table-tag">product</span><span class="table-tag">stock_ledger_entry</span></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Receivables / Payables</td><td style="padding:7px 10px;font-family:monospace;color:#93c5fd;">receivables_payables_service.py</td><td style="padding:7px 10px;"><span class="table-tag">sales_invoice</span><span class="table-tag">purchase_invoice</span><p style="margin-top:4px;">Outstanding = <code>grand_total − paid_amount</code> computed directly on the invoice — deliberately NOT <code>customer.balance</code>/<code>supplier.balance</code> (untrusted reconciliation caches).</p></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Payments (Register/Method Summary/Daily Collection/Cheque)</td><td style="padding:7px 10px;font-family:monospace;color:#93c5fd;">payment_report_service.py</td><td style="padding:7px 10px;"><span class="table-tag">payment</span><span class="table-tag">customer</span></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Accounting (General Ledger/Trial Balance/P&amp;L/Balance Sheet)</td><td style="padding:7px 10px;font-family:monospace;color:#93c5fd;">accounting_report_service.py</td><td style="padding:7px 10px;"><span class="table-tag">journal_entry</span><span class="table-tag">journal_line</span><span class="table-tag">chart_of_account</span></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">GST (Summary/Transactions/HSN Summary)</td><td style="padding:7px 10px;font-family:monospace;color:#93c5fd;">thin delegation to GstrService</td><td style="padding:7px 10px;"><span class="table-tag">gst_transaction</span><span class="table-tag">gst_transaction_line</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> Router: <code>app/api/v1/reports.py</code> — every endpoint gated by its own <code>reports.view_*</code> permission; export (JSON only, no Excel/PDF/CSV) gated by <code>reports.export</code></div>
+    </div>
+
+    <!-- Stage 3: Analysis -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge readonly">Read</span> Analysis (interactive BI layer)</div>
+          <div class="stage-sub">A thin composition layer OVER Reports — never a second formula implementation</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>AnalysisManagement.tsx</code><p>Overview/Sales/Products/Customers/Purchases/Inventory tabs — Period + Compare-To filters, charts, drill-down, Sales-by-User table.</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>GET /analysis/overview</code><code>/sales</code><code>/sales-by-user</code><code>/products</code><code>/customers</code><code>/purchases</code><code>/inventory</code><p>Router: <code>app/api/v1/analysis.py</code> — gated by the SAME <code>reports.view_*</code> codes Reports uses, no dedicated Analysis permission family.</p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>AnalysisService.get_*()</code><p><code>app/services/analysis/analysis_service.py</code> — calls <code>SalesReportService</code>/<code>PurchaseReportService</code>/etc. TWICE (current period + comparison period) and merges into <code>{current, previous, change, change_percent}</code>. Trend series are the ONLY genuinely new query logic (<code>GROUP BY date_trunc(...)</code>).</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Reads From</div><p>Same tables as the equivalent Reports family above, plus <code>sales_invoice.created_by</code> (joined to <code>user.name</code>) for Sales-by-User.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><p class="none">None — but <strong>Sales-by-User is the one place a read path enforces a data-scope rule server-side</strong>: a Salesperson's own request is filtered to <code>created_by == their own user_id</code>; Owner/Manager see every staff member.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note-box">⚠ Fields with NO approved calculation anywhere in this codebase always render as an explicit <code>{"value": null, "reason": "..."}</code>, never a fabricated number: <strong>Inventory Value</strong>, <strong>Gross Margin/Gross Profit</strong>, and <strong>Stock Turnover</strong>. (Note: <code>product.cost_price</code> now has a REAL meaning as of the Weighted Average Cost feature — see the Inventory page — but no report has been updated to use it for a margin calculation; that remains an explicit, unapproved Open Decision.)</div>
+  </main>
+
+  <footer class="flow-footer">Verified directly against backend source — app/services/reports/*.py, app/services/analysis/analysis_service.py.</footer>
+
+  <script src="assets/flow.js"></script>
+</body>
+</html>

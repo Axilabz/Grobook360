@@ -202,12 +202,12 @@ const Home: React.FC = () => {
       </div>
 
       {quickActions.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex flex-nowrap md:flex-wrap gap-2 mb-6 overflow-x-auto md:overflow-visible -mx-4 px-4 md:mx-0 md:px-0 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {quickActions.map((a) => (
             <button
               key={a.label}
               onClick={() => navigate(a.view)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
+              className="shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700"
             >
               <Plus size={13} className="text-[#0066ff]" /> {a.icon} {a.label}
             </button>

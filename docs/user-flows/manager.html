@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manager — User Flow</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>📗 GroBook 360 — Manager User Flow</h1>
+    <div style="display:flex;align-items:center;gap:14px;">
+      <span class="role-badge">Role: MANAGER</span>
+      <nav class="role-switcher">
+        <a href="index.html">Index</a>
+        <a href="owner.html">Owner</a>
+        <a href="manager.html" class="active">Manager</a>
+        <a href="salesperson.html">Salesperson</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main>
+      <div class="intro-card">
+        <strong>Manager operates nearly every module day-to-day</strong> — Customers, Suppliers, Products, Inventory, the full Sales and Purchase document chains, Payments, Payroll, and view/prepare access to Accounting/GST/Reports/Analysis. Three things Manager <em>cannot</em> do (RBAC Alignment Phase): reverse an Accounting journal or manage account mappings, export prepared GST data, and see the Role &amp; Permission catalogue (Owner-only "User Permission" menu item). User Management is view-only, and Business Profile/Configuration are view-only.
+        <div class="legend">
+          <span class="kind-badge kind-view">View</span>
+          <span class="kind-badge kind-create">Create</span>
+          <span class="kind-badge kind-edit">Edit</span>
+          <span class="kind-badge kind-approve">Approve/Post</span>
+          <span class="kind-badge kind-export">Export</span>
+          <span class="kind-badge kind-delete">Cancel/Reverse</span>
+          <span class="kind-badge kind-special">Action</span>
+        </div>
+      </div>
+      <div class="main-panel" id="main-panel"></div>
+    </main>
+  </div>
+
+  <footer class="flow-footer">Generated from the live backend permission catalogue (app/core/permissions.py) — RBAC Alignment Phase.</footer>
+
+  <script>const ROLE = 'MANAGER';</script>
+  <script src="assets/modules-data.js"></script>
+  <script src="assets/flow-engine.js"></script>
+</body>
+</html>

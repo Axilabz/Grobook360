@@ -668,3 +668,216 @@ async def test_inventory_api_037_ledger_update_rejected_at_db_level(client, db_s
         )
         await db_session.commit()
     await db_session.rollback()
+
+
+# --- Manual Stock Movements -> Accounting (Weighted Average Cost) ---
+
+ACCOUNTING_ENDPOINT = "/api/v1/accounting"
+
+
+async def _journals_for(client, source_type: str) -> list[dict]:
+    response = await client.get(f"{ACCOUNTING_ENDPOINT}/journals", params={"source_type": source_type, "page_size": 50})
+    assert response.status_code == 200
+    return response.json()["data"]
+
+
+async def _product_cost_price(client, product_id: str) -> str:
+    response = await client.get(f"{PRODUCTS_ENDPOINT}/{product_id}")
+    assert response.status_code == 200
+    return response.json()["data"]["cost_price"]
+
+
+async def test_opening_stock_with_unit_cost_posts_journal_and_sets_cost_price(client):
+    await _signup_and_login_owner(client)
+    pcs = await _create_unit(client, "PCS", "Pieces")
+    product = await _create_product(client, pcs["id"])
+
+    response = await client.post(
+        f"{INVENTORY_ENDPOINT}/opening-stock",
+        json={"product_id": product["id"], "quantity": "100", "uom_id": pcs["id"], "unit_cost": "50.00"},
+        headers=_idem(),
+    )
+    assert response.status_code == 201
+
+    assert await _product_cost_price(client, product["id"]) == "50.00"
+    journals = await _journals_for(client, "OPENING_STOCK")
+    assert len(journals) == 1
+    assert journals[0]["total_debit"] == "5000.00"
+    assert journals[0]["total_debit"] == journals[0]["total_credit"]
+
+
+async def test_opening_stock_without_unit_cost_posts_no_journal(client):
+    await _signup_and_login_owner(client)
+    pcs = await _create_unit(client, "PCS", "Pieces")
+    product = await _create_product(client, pcs["id"])
+
+    response = await client.post(
+        f"{INVENTORY_ENDPOINT}/opening-stock",
+        json={"product_id": product["id"], "quantity": "100", "uom_id": pcs["id"]},
+        headers=_idem(),
+    )
+    assert response.status_code == 201  # the stock movement itself still succeeds
+
+    assert await _product_cost_price(client, product["id"]) == "0.00"
+    journals = await _journals_for(client, "OPENING_STOCK")
+    assert journals == []
+
+
+async def test_stock_in_with_unit_cost_recomputes_weighted_average(client):
+    await _signup_and_login_owner(client)
+    pcs = await _create_unit(client, "PCS", "Pieces")
+    product = await _create_product(client, pcs["id"])
+
+    # Opening: 100 units @ 50.00 -> average 50.00
+    await client.post(
+        f"{INVENTORY_ENDPOINT}/opening-stock",
+        json={"product_id": product["id"], "quantity": "100", "uom_id": pcs["id"], "unit_cost": "50.00"},
+        headers=_idem(),
+    )
+    # Stock In: 50 units @ 80.00 -> new average = (100*50 + 50*80) / 150 = 60.00
+    response = await client.post(
+        f"{INVENTORY_ENDPOINT}/stock-in",
+        json={"product_id": product["id"], "quantity": "50", "uom_id": pcs["id"], "unit_cost": "80.00"},
+        headers=_idem(),
+    )
+    assert response.status_code == 201
+
+    assert await _product_cost_price(client, product["id"]) == "60.00"
+    journals = await _journals_for(client, "MANUAL_STOCK_IN")
+    assert len(journals) == 1
+    assert journals[0]["total_debit"] == "4000.00"  # 50 * 80.00
+
+
+async def test_stock_in_without_unit_cost_uses_current_average_unchanged(client):
+    await _signup_and_login_owner(client)
+    pcs = await _create_unit(client, "PCS", "Pieces")
+    product = await _create_product(client, pcs["id"])
+
+    await client.post(
+        f"{INVENTORY_ENDPOINT}/opening-stock",
+        json={"product_id": product["id"], "quantity": "100", "uom_id": pcs["id"], "unit_cost": "50.00"},
+        headers=_idem(),
+    )
+    response = await client.post(
+        f"{INVENTORY_ENDPOINT}/stock-in",
+        json={"product_id": product["id"], "quantity": "20", "uom_id": pcs["id"]},
+        headers=_idem(),
+    )
+    assert response.status_code == 201
+
+    assert await _product_cost_price(client, product["id"]) == "50.00"  # unchanged
+    journals = await _journals_for(client, "MANUAL_STOCK_IN")
+    assert len(journals) == 1
+    assert journals[0]["total_debit"] == "1000.00"  # 20 * current average 50.00
+
+
+async def test_stock_out_values_at_current_average_and_never_changes_it(client):
+    await _signup_and_login_owner(client)
+    pcs = await _create_unit(client, "PCS", "Pieces")
+    product = await _create_product(client, pcs["id"])
+
+    await client.post(
+        f"{INVENTORY_ENDPOINT}/opening-stock",
+        json={"product_id": product["id"], "quantity": "100", "uom_id": pcs["id"], "unit_cost": "50.00"},
+        headers=_idem(),
+    )
+    response = await client.post(
+        f"{INVENTORY_ENDPOINT}/stock-out",
+        json={"product_id": product["id"], "quantity": "30", "uom_id": pcs["id"]},
+        headers=_idem(),
+    )
+    assert response.status_code == 201
+
+    assert await _product_cost_price(client, product["id"]) == "50.00"  # average never changes on an outflow
+    journals = await _journals_for(client, "MANUAL_STOCK_OUT")
+    assert len(journals) == 1
+    assert journals[0]["total_debit"] == "1500.00"  # 30 * 50.00
+
+
+async def test_stock_out_with_zero_cost_posts_no_journal(client):
+    await _signup_and_login_owner(client)
+    pcs = await _create_unit(client, "PCS", "Pieces")
+    product = await _create_product(client, pcs["id"])
+
+    # Opening stock WITHOUT a cost -> product.cost_price stays 0.
+    await client.post(
+        f"{INVENTORY_ENDPOINT}/opening-stock",
+        json={"product_id": product["id"], "quantity": "100", "uom_id": pcs["id"]},
+        headers=_idem(),
+    )
+    response = await client.post(
+        f"{INVENTORY_ENDPOINT}/stock-out",
+        json={"product_id": product["id"], "quantity": "10", "uom_id": pcs["id"]},
+        headers=_idem(),
+    )
+    assert response.status_code == 201  # stock movement still succeeds
+
+    journals = await _journals_for(client, "MANUAL_STOCK_OUT")
+    assert journals == []  # never a fabricated zero-value journal
+
+
+async def test_adjustment_in_with_unit_cost_recomputes_average(client):
+    await _signup_and_login_owner(client)
+    pcs = await _create_unit(client, "PCS", "Pieces")
+    product = await _create_product(client, pcs["id"])
+
+    await client.post(
+        f"{INVENTORY_ENDPOINT}/opening-stock",
+        json={"product_id": product["id"], "quantity": "100", "uom_id": pcs["id"], "unit_cost": "50.00"},
+        headers=_idem(),
+    )
+    # Adjustment IN: 50 units @ 80.00 -> new average = (100*50 + 50*80) / 150 = 60.00
+    response = await client.post(
+        f"{INVENTORY_ENDPOINT}/adjustments",
+        json={"product_id": product["id"], "quantity": "50", "uom_id": pcs["id"], "direction": "IN", "reason": "Found stock", "unit_cost": "80.00"},
+        headers=_idem(),
+    )
+    assert response.status_code == 201
+
+    assert await _product_cost_price(client, product["id"]) == "60.00"
+    journals = await _journals_for(client, "STOCK_ADJUSTMENT")
+    assert len(journals) == 1
+    assert journals[0]["total_debit"] == "4000.00"
+
+
+async def test_adjustment_out_values_at_current_average(client):
+    await _signup_and_login_owner(client)
+    pcs = await _create_unit(client, "PCS", "Pieces")
+    product = await _create_product(client, pcs["id"])
+
+    await client.post(
+        f"{INVENTORY_ENDPOINT}/opening-stock",
+        json={"product_id": product["id"], "quantity": "100", "uom_id": pcs["id"], "unit_cost": "50.00"},
+        headers=_idem(),
+    )
+    response = await client.post(
+        f"{INVENTORY_ENDPOINT}/adjustments",
+        json={"product_id": product["id"], "quantity": "10", "uom_id": pcs["id"], "direction": "OUT", "reason": "Damaged"},
+        headers=_idem(),
+    )
+    assert response.status_code == 201
+
+    assert await _product_cost_price(client, product["id"]) == "50.00"
+    journals = await _journals_for(client, "STOCK_ADJUSTMENT")
+    assert len(journals) == 1
+    assert journals[0]["total_debit"] == "500.00"  # 10 * 50.00
+
+
+async def test_other_post_movement_callers_still_post_zero_accounting_entries(client):
+    """Sanity check for the explicit non-goal: Delivery Challan / Goods
+    Receipt / Sales / Purchase document stock movements must NOT gain an
+    accounting entry just because this feature exists -- only the 4
+    manual entry points do."""
+    await _signup_and_login_owner(client)
+    pcs = await _create_unit(client, "PCS", "Pieces")
+    product = await _create_product(client, pcs["id"])
+
+    await client.post(
+        f"{INVENTORY_ENDPOINT}/opening-stock",
+        json={"product_id": product["id"], "quantity": "100", "uom_id": pcs["id"], "unit_cost": "50.00"},
+        headers=_idem(),
+    )
+
+    for source_type in ("DELIVERY_CHALLAN", "GOODS_RECEIPT", "SALES_INVOICE", "SALES_RETURN", "PURCHASE_RETURN"):
+        journals = await _journals_for(client, source_type)
+        assert journals == []

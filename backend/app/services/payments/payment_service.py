@@ -215,6 +215,40 @@ class PaymentService:
         ]
         return party_name, items
 
+    # --- per-invoice payment history (narrow, document-scoped read — same
+    # convention as PROMPT-020/021/022/023's own related-documents/audit-
+    # history endpoints: gated by the SOURCE document's own .view
+    # permission, not a general payment-browsing API) ---------------------
+
+    async def list_receipts_for_invoice(
+        self, *, tenant_id: uuid.UUID, sales_invoice_id: uuid.UUID
+    ) -> list[dict]:
+        creator = aliased(User)
+        rows = (
+            await self._session.execute(
+                select(Payment, PaymentAllocation.allocated_amount, creator.name)
+                .join(PaymentAllocation, PaymentAllocation.payment_id == Payment.id)
+                .outerjoin(creator, creator.id == Payment.created_by)
+                .where(
+                    Payment.tenant_id == tenant_id,
+                    PaymentAllocation.sales_invoice_id == sales_invoice_id,
+                )
+                .order_by(Payment.payment_date.desc(), Payment.created_at.desc())
+            )
+        ).all()
+        return [
+            {
+                "payment_id": str(payment.id),
+                "payment_number": payment.payment_number,
+                "payment_date": payment.payment_date.isoformat(),
+                "amount": allocated_amount,
+                "payment_method": payment.payment_method,
+                "status": payment.status,
+                "collected_by_name": creator_name,
+            }
+            for payment, allocated_amount, creator_name in rows
+        ]
+
     # --- queries ---------------------------------------------------------
 
     async def list_payments(

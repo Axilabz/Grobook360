@@ -7,6 +7,7 @@ import {
 import Input from './Input';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useNavigation } from '../context/NavigationContext';
 import MobileFilterToggle from '../shared/MobileFilterToggle';
 import ExportButton from '../shared/ExportButton';
 import { ApiError } from '../api/client';
@@ -59,6 +60,7 @@ const ELIGIBLE_PO_STATUSES = new Set(['CONFIRMED', 'PARTIALLY_RECEIVED', 'FULLY_
 const PurchaseInvoiceManagement: React.FC = () => {
   const { hasPermission } = useAuth();
   const { showToast } = useToast();
+  const { consumeParams } = useNavigation();
   const canCreate = hasPermission('purchase_invoice.create');
   const canPost = hasPermission('purchase_invoice.post');
   const canCancel = hasPermission('purchase_invoice.cancel');
@@ -97,6 +99,14 @@ const PurchaseInvoiceManagement: React.FC = () => {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+
+  // Arrived here from the header search (a specific invoice picked from its
+  // results) — open that invoice's detail view directly.
+  useEffect(() => {
+    const params = consumeParams('Purchase Invoices');
+    if (params?.id) setViewingId(params.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="max-w-[98%] mx-auto p-4 md:p-6 animate-fade-in">

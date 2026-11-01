@@ -16,6 +16,7 @@ import {
   InvoiceTemplateConfig, InvoiceTemplateId,
 } from '../api/configuration';
 import InvoiceRenderer, { InvoiceRenderData, BusinessProfileData } from '../shared/InvoiceRenderer';
+import { useBusinessProfile } from '../shared/useBusinessProfile';
 import LoadingState from '../shared/LoadingState';
 
 const TEMPLATES: { id: InvoiceTemplateId; name: string; description: string }[] = [
@@ -171,10 +172,7 @@ const ConfigurationManagement: React.FC = () => {
   };
 
   const previewConfig: InvoiceTemplateConfig | null = form && saved ? { ...form, id: saved.id, logo_data_uri: logoDataUri, row_version: rowVersion } : null;
-  const business: BusinessProfileData = {
-    business_name: currentTenant?.business_name || 'Your Business', gstin: null,
-    address_line1: null, city: null, state_code: null, pin_code: null,
-  };
+  const business: BusinessProfileData = useBusinessProfile(currentTenant?.business_name);
 
   return (
     <div className="max-w-[98%] mx-auto p-4 md:p-6 animate-fade-in">

@@ -31,6 +31,7 @@ from app.core.permissions import (
     CUSTOMER_RECEIPT_EXPORT,
     PRODUCTS_EXPORT,
     PURCHASE_INVOICE_EXPORT,
+    REPORTS_EXPORT,
     SALES_INVOICE_EXPORT,
     SUPPLIERS_EXPORT,
     SUPPLIER_PAYMENT_EXPORT,
@@ -42,6 +43,10 @@ from app.services.products.product_service import ProductService
 from app.services.sales.sales_invoice_service import SalesInvoiceService
 from app.services.purchase.purchase_invoice_service import PurchaseInvoiceService
 from app.services.payments.payment_service import PaymentService, CUSTOMER as PARTY_CUSTOMER, SUPPLIER as PARTY_SUPPLIER
+from app.services.reports.sales_report_service import SalesReportService
+from app.services.reports.purchase_report_service import PurchaseReportService
+from app.services.reports.inventory_report_service import InventoryReportService
+from app.services.reports.payment_report_service import PaymentReportService
 
 
 @dataclass(frozen=True)
@@ -169,6 +174,61 @@ def _make_payment_fetcher(party_type: str):
     return _fetch
 
 
+# --- Analysis page exports (§22 of the Analysis spec) ----------------------
+# Each of these wraps the EXACT SAME report-service method
+# `app.services.analysis.analysis_service.AnalysisService` itself calls for
+# the corresponding Analysis tab's table — never a separate/parallel query
+# — so an exported file always matches what was on screen. Gated by the
+# existing `reports.export` permission (reused, not a new code) since
+# Analysis has no permission codes of its own (see backend/app/api/v1/
+# analysis.py's own module docstring).
+
+
+async def _fetch_analysis_sales_products(session, tenant_id, filters: ExportFilters, page_size: int, page: int):
+    rows, total = await SalesReportService(session).get_product_wise_sales(
+        tenant_id=tenant_id, date_from=filters.date_from, date_to=filters.date_to, page=page, page_size=page_size,
+    )
+    return rows, total
+
+
+async def _fetch_analysis_customers(session, tenant_id, filters: ExportFilters, page_size: int, page: int):
+    rows, total = await SalesReportService(session).get_customer_wise_sales(
+        tenant_id=tenant_id, date_from=filters.date_from, date_to=filters.date_to, page=page, page_size=page_size,
+    )
+    return rows, total
+
+
+async def _fetch_analysis_purchase_suppliers(session, tenant_id, filters: ExportFilters, page_size: int, page: int):
+    rows, total = await PurchaseReportService(session).get_supplier_wise_purchase(
+        tenant_id=tenant_id, date_from=filters.date_from, date_to=filters.date_to, page=page, page_size=page_size,
+    )
+    return rows, total
+
+
+async def _fetch_analysis_inventory(session, tenant_id, filters: ExportFilters, page_size: int, page: int):
+    rows, total = await InventoryReportService(session).get_current_stock(
+        tenant_id=tenant_id, page=page, page_size=page_size, status_filter=None, search=filters.search,
+    )
+    return rows, total
+
+
+async def _fetch_daily_collection(session, tenant_id, filters: ExportFilters, page_size: int, page: int):
+    # `daily_collection_report` fetches the whole date range and groups it
+    # in Python (no SQL-level pagination — see its own docstring); flatten
+    # back into one row per collection entry (carrying its day's date) for
+    # export, then paginate in Python. MAX_EXPORT_ROWS (10,000) bounds the
+    # worst case, same as every other Python-side-paginated resource here.
+    days = await PaymentReportService(session).daily_collection_report(tenant_id=tenant_id, date_from=filters.date_from, date_to=filters.date_to)
+    rows = [
+        {"date": day["date"], "payment_number": e["payment_number"], "customer_name": e["customer_name"],
+         "payment_method": e["payment_method"], "collected_by_name": e["collected_by_name"], "amount": e["amount"]}
+        for day in days for e in day["entries"]
+    ]
+    total_items = len(rows)
+    start = (page - 1) * page_size
+    return rows[start:start + page_size], total_items
+
+
 RESOURCES: dict[str, ResourceAdapter] = {
     "customers": ResourceAdapter(
         key="customers", title="Customers", export_permission=CUSTOMERS_EXPORT,
@@ -249,6 +309,57 @@ RESOURCES: dict[str, ResourceAdapter] = {
             field("reference_number", "Reference", "text", 18),
         ],
         fetch=_make_payment_fetcher(PARTY_SUPPLIER),
+    ),
+    "analysis_sales_products": ResourceAdapter(
+        key="analysis_sales_products", title="Analysis - Product-wise Sales", export_permission=REPORTS_EXPORT,
+        columns=[
+            field("sku", "SKU", "text", 16), field("product_name", "Product Name", "text", 28),
+            field("quantity_sold", "Qty Sold", "number", 12), field("gross_sales", "Gross Sales", "currency", 14),
+            field("discount", "Discount", "currency", 12), field("taxable_sales", "Taxable Sales", "currency", 14),
+            field("gst", "GST", "currency", 12), field("returns", "Returns", "currency", 12),
+            field("net_sales", "Net Sales", "currency", 14),
+        ],
+        fetch=_fetch_analysis_sales_products,
+    ),
+    "analysis_customers": ResourceAdapter(
+        key="analysis_customers", title="Analysis - Customer-wise Sales", export_permission=REPORTS_EXPORT,
+        columns=[
+            field("customer_name", "Customer", "text", 28), field("invoice_count", "Invoices", "number", 10),
+            field("gross_sales", "Gross Sales", "currency", 14), field("discount", "Discount", "currency", 12),
+            field("taxable_sales", "Taxable Sales", "currency", 14), field("gst", "GST", "currency", 12),
+            field("returns", "Returns", "currency", 12), field("net_sales", "Net Sales", "currency", 14),
+            field("outstanding", "Outstanding", "currency", 14),
+        ],
+        fetch=_fetch_analysis_customers,
+    ),
+    "analysis_purchase_suppliers": ResourceAdapter(
+        key="analysis_purchase_suppliers", title="Analysis - Supplier-wise Purchase", export_permission=REPORTS_EXPORT,
+        columns=[
+            field("supplier_name", "Supplier", "text", 28), field("invoice_count", "Invoices", "number", 10),
+            field("gross_purchase", "Gross Purchase", "currency", 14), field("discount", "Discount", "currency", 12),
+            field("taxable_purchase", "Taxable Purchase", "currency", 14), field("gst", "GST", "currency", 12),
+            field("returns", "Returns", "currency", 12), field("net_purchase", "Net Purchase", "currency", 14),
+            field("outstanding", "Outstanding", "currency", 14),
+        ],
+        fetch=_fetch_analysis_purchase_suppliers,
+    ),
+    "analysis_inventory": ResourceAdapter(
+        key="analysis_inventory", title="Analysis - Inventory", export_permission=REPORTS_EXPORT,
+        columns=[
+            field("sku", "SKU", "text", 16), field("product_name", "Product Name", "text", 28),
+            field("uom", "Unit", "text", 8), field("current_quantity", "Current Stock", "number", 14),
+            field("reorder_level", "Reorder Level", "number", 14), field("stock_status", "Status", "text", 14),
+        ],
+        fetch=_fetch_analysis_inventory,
+    ),
+    "daily_collection": ResourceAdapter(
+        key="daily_collection", title="Daily Collection Report", export_permission=REPORTS_EXPORT,
+        columns=[
+            field("date", "Date", "date", 12), field("payment_number", "Receipt Number", "text", 18),
+            field("customer_name", "Customer", "text", 26), field("payment_method", "Method", "text", 12),
+            field("collected_by_name", "Collected By", "text", 20), field("amount", "Amount", "currency", 14),
+        ],
+        fetch=_fetch_daily_collection,
     ),
 }
 

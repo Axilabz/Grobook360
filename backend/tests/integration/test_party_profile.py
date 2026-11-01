@@ -157,19 +157,18 @@ async def test_salesperson_can_view_customer_profile(client):
     assert response.status_code == 200
 
 
-async def test_salesperson_can_view_supplier_profile(client):
-    """Salesperson has suppliers.view (FR-SUPP-05 — Limited, not zero,
-    access to the Supplier master itself; PROMPT-019's own "zero Purchase
-    access" resolution is specifically about PO/GR/PI/PR documents, not
-    the Supplier master/profile) — confirms the Party 360 endpoint's
-    per-party-type permission check grants this correctly rather than
-    over-restricting."""
+async def test_salesperson_cannot_view_supplier_profile(client):
+    """RBAC Alignment Phase: Supplier Management is now "No Access" for
+    Salesperson (suppliers.view/create/update all removed) — a deliberate
+    tightening from the prior FR-SUPP-05-derived "Limited" resolution this
+    test used to assert. The Party 360 endpoint's per-party-type permission
+    check must now deny Salesperson access to a supplier's profile too."""
     await _signup_and_login_owner(client)
     supplier = await _create_supplier(client)
     await _create_user_and_login(client, role="SALESPERSON")
 
     response = await client.get(f"/api/v1/parties/supplier/{supplier['id']}")
-    assert response.status_code == 200
+    assert response.status_code == 403
 
 
 # --- Tenant isolation ---

@@ -372,6 +372,7 @@ const StockActionModal: React.FC<{ item: InventoryItem; type: ActionType; onClos
   const [direction, setDirection] = useState<'IN' | 'OUT'>('IN');
   const [reason, setReason] = useState('');
   const [notes, setNotes] = useState('');
+  const [unitCost, setUnitCost] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -407,13 +408,16 @@ const StockActionModal: React.FC<{ item: InventoryItem; type: ActionType; onClos
     setIsSubmitting(true);
     try {
       if (type === 'opening') {
-        await createOpeningStock({ product_id: item.product_id, quantity, uom_id: uomId });
+        await createOpeningStock({ product_id: item.product_id, quantity, uom_id: uomId, unit_cost: unitCost || null });
       } else if (type === 'in') {
-        await createStockIn({ product_id: item.product_id, quantity, uom_id: uomId, notes: notes || null });
+        await createStockIn({ product_id: item.product_id, quantity, uom_id: uomId, notes: notes || null, unit_cost: unitCost || null });
       } else if (type === 'out') {
         await createStockOut({ product_id: item.product_id, quantity, uom_id: uomId, notes: notes || null });
       } else {
-        await createAdjustment({ product_id: item.product_id, quantity, uom_id: uomId, direction, reason });
+        await createAdjustment({
+          product_id: item.product_id, quantity, uom_id: uomId, direction, reason,
+          unit_cost: direction === 'IN' ? unitCost || null : null,
+        });
       }
       showToast('Stock movement recorded successfully.', 'success');
       onSaved();
@@ -490,6 +494,22 @@ const StockActionModal: React.FC<{ item: InventoryItem; type: ActionType; onClos
           ) : (type === 'in' || type === 'out') ? (
             <Input label="Notes (Optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
           ) : null}
+
+          {(type === 'opening' || type === 'in' || (type === 'adjust' && direction === 'IN')) && (
+            <div className="mb-2">
+              <Input
+                label="Unit Cost — ₹ per base unit (Optional)"
+                type="number" min={0} step="0.01"
+                value={unitCost}
+                onChange={(e) => setUnitCost(e.target.value)}
+              />
+              <p className="text-[12px] text-gray-400 mt-1">
+                {product && Number(product.cost_price) > 0
+                  ? `Leave blank to use the current average cost (₹${product.cost_price}/${item.base_uom.code}) — the stock still updates either way, just without a fresh accounting entry if left blank.`
+                  : 'Leave blank if unknown — stock will still update, just without an accounting entry for this movement.'}
+              </p>
+            </div>
+          )}
 
           {resultingStock !== null && (
             <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 mb-6 text-[14px] space-y-1">

@@ -32,6 +32,7 @@ export interface StockMovement {
   running_balance: string;
   adjustment_number?: string;
   reason?: string;
+  unit_cost?: string | null;
 }
 
 export interface AvailabilityResponse {
@@ -85,6 +86,8 @@ export interface OpeningStockPayload {
   product_id: string;
   quantity: string;
   uom_id: string;
+  /** Weighted Average Cost per the product's BASE unit — optional. Omitting it still records the stock movement; it just posts no accounting journal for it. */
+  unit_cost?: string | null;
 }
 
 export async function createOpeningStock(payload: OpeningStockPayload): Promise<StockMovement> {
@@ -102,7 +105,12 @@ export interface StockMovePayload {
   notes?: string | null;
 }
 
-export async function createStockIn(payload: StockMovePayload): Promise<StockMovement> {
+export interface StockInPayload extends StockMovePayload {
+  /** Weighted Average Cost per the product's BASE unit — optional. Omitting it falls back to the product's current average cost (and leaves the average unchanged). */
+  unit_cost?: string | null;
+}
+
+export async function createStockIn(payload: StockInPayload): Promise<StockMovement> {
   return apiRequest<StockMovement>('/inventory/stock-in', {
     method: 'POST',
     body: payload,
@@ -124,6 +132,8 @@ export interface AdjustmentPayload {
   uom_id: string;
   direction: 'IN' | 'OUT';
   reason: string;
+  /** Weighted Average Cost per the product's BASE unit — only used when direction is IN. Omitting it falls back to the product's current average cost. */
+  unit_cost?: string | null;
 }
 
 export async function createAdjustment(payload: AdjustmentPayload): Promise<StockMovement> {

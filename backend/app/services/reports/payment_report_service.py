@@ -21,10 +21,12 @@ from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.models.customer import Customer
 from app.models.payment import CUSTOMER, POSTED, Payment
 from app.models.supplier import Supplier
+from app.models.user import User
 
 _ZERO = Decimal("0")
 
@@ -87,6 +89,42 @@ class PaymentReportService:
             )
         ).all()
         return [{"payment_method": method, "transaction_count": count, "amount": amount} for method, count, amount in rows]
+
+    # --- Daily Collection Report (new) ------------------------------------
+    # Customer-side collections only (money IN) — "collection" is
+    # distinct from a Supplier Payment (money OUT), so this is always
+    # party_type == CUSTOMER, grouped by payment_date, with the
+    # collecting user resolved via the same created_by -> user.name
+    # pattern used elsewhere in this codebase (e.g.
+    # delivery_challan_service.get_challan).
+
+    async def daily_collection_report(self, *, tenant_id: uuid.UUID, date_from: date | None, date_to: date | None) -> list[dict]:
+        creator = aliased(User)
+        conditions = [
+            Payment.tenant_id == tenant_id, Payment.status == POSTED, Payment.party_type == CUSTOMER,
+            *_date_filters(Payment.payment_date, date_from, date_to),
+        ]
+        rows = (
+            await self._session.execute(
+                select(Payment, Customer.name, creator.name)
+                .join(Customer, Customer.id == Payment.customer_id)
+                .outerjoin(creator, creator.id == Payment.created_by)
+                .where(*conditions)
+                .order_by(Payment.payment_date.asc(), Payment.created_at.asc())
+            )
+        ).all()
+
+        days: dict[str, dict] = {}
+        for payment, customer_name, collected_by_name in rows:
+            day_key = payment.payment_date.isoformat()
+            day = days.setdefault(day_key, {"date": payment.payment_date, "total_amount": _ZERO, "entry_count": 0, "entries": []})
+            day["total_amount"] += payment.amount
+            day["entry_count"] += 1
+            day["entries"].append({
+                "payment_id": str(payment.id), "payment_number": payment.payment_number, "customer_name": customer_name,
+                "payment_method": payment.payment_method, "amount": payment.amount, "collected_by_name": collected_by_name,
+            })
+        return sorted(days.values(), key=lambda d: d["date"], reverse=True)
 
     # --- Cheque Report (§32) --------------------------------------------------
 

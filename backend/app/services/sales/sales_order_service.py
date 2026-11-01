@@ -547,11 +547,13 @@ class SalesOrderService:
         actor_user_id: uuid.UUID,
         order_id: uuid.UUID,
         expected_row_version: int,
+        cancellation_reason: str,
         ip_address: str | None,
     ) -> SalesOrder:
         """§21: cancellation is status-controlled and creates NO stock
         reversal — a Sales Order itself never moved stock in the first
-        place (§4). Preserves all historical data; only `status` changes."""
+        place (§4). Preserves all historical data; only `status` (and the
+        new `cancellation_reason`) changes."""
         order = await self._get_order_locked(tenant_id, order_id)
         check_row_version(order, expected_row_version)
 
@@ -560,6 +562,7 @@ class SalesOrderService:
 
         previous_status = order.status
         order.status = CANCELLED
+        order.cancellation_reason = cancellation_reason
         order.updated_by = actor_user_id
         order.row_version += 1
         await self._session.flush()
@@ -571,7 +574,7 @@ class SalesOrderService:
             entity_type="sales_order",
             entity_id=order.id,
             before={"status": previous_status},
-            after={"status": CANCELLED},
+            after={"status": CANCELLED, "cancellation_reason": cancellation_reason},
             ip_address=ip_address,
         )
         return order

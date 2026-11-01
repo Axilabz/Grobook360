@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ApiError, apiRequest } from '../api/client';
 import * as R from '../api/reports';
+import ExportButton from '../shared/ExportButton';
 
 function currentReturnPeriod(): string {
   const now = new Date();
@@ -462,6 +463,9 @@ const PaymentsTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') => 
   const [payments, setPayments] = useState<{ items: R.PaymentRegisterItem[]; total: number; pages: number }>({ items: [], total: 0, pages: 1 });
   const [methodSummary, setMethodSummary] = useState<R.PaymentMethodSummaryRow[]>([]);
   const [cheques, setCheques] = useState<{ items: R.ChequeReportRow[]; total: number; pages: number }>({ items: [], total: 0, pages: 1 });
+  const [dailyCollection, setDailyCollection] = useState<R.DailyCollectionDay[]>([]);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => { setPage(1); }, [sub]);
@@ -472,6 +476,7 @@ const PaymentsTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') => 
       try {
         if (sub === 'register') { const r = await R.listPayments({ page, page_size: 15 }); setPayments({ items: r.data, total: r.pagination.total_items, pages: r.pagination.total_pages }); }
         else if (sub === 'methods') setMethodSummary(await R.getPaymentMethodSummary());
+        else if (sub === 'daily-collection') setDailyCollection(await R.getDailyCollectionReport({ date_from: dateFrom || undefined, date_to: dateTo || undefined }));
         else { const r = await R.listCheques({ page, page_size: 15 }); setCheques({ items: r.data, total: r.pagination.total_items, pages: r.pagination.total_pages }); }
       } catch (err) {
         showToast(err instanceof ApiError ? err.message : 'Failed to load report.', 'error');
@@ -480,11 +485,37 @@ const PaymentsTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') => 
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     })();
-  }, [sub, page]);
+  }, [sub, page, dateFrom, dateTo]);
+
+  const dailyCollectionTotal = dailyCollection.reduce((sum, d) => sum + Number(d.total_amount), 0);
+  const dailyCollectionEntryCount = dailyCollection.reduce((sum, d) => sum + d.entry_count, 0);
 
   return (
     <div>
-      <SubTabs options={[['register', 'Payment Register'], ['methods', 'Method Summary'], ['cheques', 'Cheque Report']]} active={sub} onChange={setSub} />
+      <SubTabs options={[['register', 'Payment Register'], ['methods', 'Method Summary'], ['daily-collection', 'Daily Collection'], ['cheques', 'Cheque Report']]} active={sub} onChange={setSub} />
+
+      {sub === 'daily-collection' && (
+        <div className="flex flex-wrap items-end gap-3 mb-4">
+          <div>
+            <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1">From</label>
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-[13px] px-3 py-1.5" />
+          </div>
+          <div>
+            <label className="block text-[12px] font-medium text-gray-500 dark:text-gray-400 mb-1">To</label>
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-[13px] px-3 py-1.5" />
+          </div>
+          <ExportButton
+            resource="daily_collection"
+            exportPermission="reports.export"
+            dateFrom={dateFrom || undefined}
+            dateTo={dateTo || undefined}
+            page={1}
+            pageSize={10000}
+            totalItems={dailyCollectionEntryCount}
+          />
+        </div>
+      )}
+
       {isLoading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
         <>
           {sub === 'register' && (
@@ -494,6 +525,29 @@ const PaymentsTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') => 
             </>
           )}
           {sub === 'methods' && <DataTable columns={['Method', 'Transactions', 'Amount']} rows={methodSummary.map((m) => [m.payment_method, m.transaction_count, `₹${m.amount}`])} />}
+          {sub === 'daily-collection' && (
+            dailyCollection.length === 0 ? (
+              <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 px-4 py-8 text-center text-gray-400">No collections for the selected date range.</div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-2.5 text-[13px] text-blue-800 dark:text-blue-300 font-medium">
+                  Total: ₹{dailyCollectionTotal.toFixed(2)} across {dailyCollectionEntryCount} collection{dailyCollectionEntryCount === 1 ? '' : 's'}
+                </div>
+                {dailyCollection.map((day) => (
+                  <div key={day.date}>
+                    <div className="flex items-center justify-between mb-1.5 px-1">
+                      <h4 className="text-[13px] font-semibold text-gray-700 dark:text-gray-200">{day.date}</h4>
+                      <span className="text-[13px] font-medium text-gray-600 dark:text-gray-300">₹{day.total_amount} · {day.entry_count} entr{day.entry_count === 1 ? 'y' : 'ies'}</span>
+                    </div>
+                    <DataTable
+                      columns={['Receipt #', 'Customer', 'Method', 'Collected By', 'Amount']}
+                      rows={day.entries.map((e) => [e.payment_number, e.customer_name || '—', e.payment_method, e.collected_by_name || 'Unknown', `₹${e.amount}`])}
+                    />
+                  </div>
+                ))}
+              </div>
+            )
+          )}
           {sub === 'cheques' && (
             <>
               <DataTable columns={['Cheque #', 'Payment #', 'Party', 'Amount', 'Cheque Date', 'Bank', 'Status']} rows={cheques.items.map((c) => [c.cheque_number || '—', c.payment_number, c.party_name || '—', `₹${c.amount}`, c.cheque_date || '—', c.bank || '—', c.cheque_status || '—'])} />

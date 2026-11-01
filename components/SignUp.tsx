@@ -5,6 +5,7 @@ import Select from './Select';
 import { AuthView } from '../types';
 import { useToast } from '../context/ToastContext';
 import { GST_STATE_CODES, formatStateOption, parseStateCode } from '../data/gstStateCodes';
+import { INDIA_STATE_CITIES, BUSINESS_TYPE_OPTIONS } from '../data/indiaStateCities';
 import { signUp } from '../api/signup';
 import { ApiError } from '../api/client';
 
@@ -20,6 +21,11 @@ const PASSWORD_MIN_LENGTH = 8;
 
 const STATE_OPTIONS = GST_STATE_CODES.map((s) => formatStateOption(s.code, s.name));
 
+function cityOptionsForState(stateOption: string): string[] {
+  if (!stateOption) return [];
+  return INDIA_STATE_CITIES[parseStateCode(stateOption)] ?? [];
+}
+
 const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
   const [step, setStep] = useState<Step>(1);
   const [showPassword, setShowPassword] = useState(false);
@@ -32,6 +38,7 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
 
   const [org, setOrg] = useState({
     businessName: '',
+    businessType: '',
     addressLine1: '',
     city: '',
     stateOption: '',
@@ -42,6 +49,7 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
   const [gstin, setGstin] = useState('');
 
   const [owner, setOwner] = useState({
+    name: '',
     phone: '',
     email: '',
     password: '',
@@ -49,6 +57,8 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const cityOptions = cityOptionsForState(org.stateOption);
 
   const setFieldError = (field: string, message?: string) => {
     setErrors((prev) => {
@@ -69,9 +79,10 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
   const validateStep1 = (): boolean => {
     const next: Record<string, string> = {};
     if (!org.businessName.trim()) next.businessName = 'Please enter the organization / business name';
+    if (!org.businessType) next.businessType = 'Please select the business type';
     if (!org.addressLine1.trim()) next.addressLine1 = 'Please enter the address';
-    if (!org.city.trim()) next.city = 'Please enter the city';
     if (!org.stateOption) next.stateOption = 'Please select the state';
+    if (!org.city.trim()) next.city = 'Please select the city';
     if (!/^\d{6}$/.test(org.pinCode)) next.pinCode = 'Please enter a valid 6-digit PIN code';
     setErrors((prev) => ({ ...prev, ...next }));
     return Object.keys(next).length === 0;
@@ -94,6 +105,7 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
 
   const validateStep3 = (): boolean => {
     const next: Record<string, string> = {};
+    if (!owner.name.trim()) next.name = "Please enter the owner's name";
     if (!/^\d{10}$/.test(owner.phone)) next.phone = 'Phone must be exactly 10 numeric digits';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(owner.email)) next.email = 'Invalid email format';
     if (owner.password.length < PASSWORD_MIN_LENGTH) {
@@ -125,6 +137,7 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
         {
           organization: {
             business_name: org.businessName,
+            business_type: org.businessType || null,
             address_line1: org.addressLine1,
             city: org.city,
             state_code: parseStateCode(org.stateOption),
@@ -132,6 +145,7 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
             gstin: noGst || !gstin ? null : gstin,
           },
           owner: {
+            name: owner.name,
             phone: owner.phone,
             email: owner.email,
             password: owner.password,
@@ -189,7 +203,7 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
     <div className="bg-white dark:bg-gray-800 w-full mx-auto max-w-3xl md:rounded-xl md:shadow-2xl md:overflow-hidden md:border md:border-gray-100 dark:border-gray-700 relative transition-colors">
       <div className="p-4 sm:p-8">
         <h1 className="text-[26px] md:text-[30px] font-bold text-gray-900 dark:text-white mb-1 leading-tight tracking-tight">
-          Saas App
+          GroBook 360
         </h1>
         <p className="text-[14px] md:text-[16px] text-gray-500 dark:text-gray-400 mb-6 font-normal leading-[1.4]">
           Create an account to access your business
@@ -240,15 +254,16 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
                 }}
                 error={errors.businessName}
               />
-              <Input
-                label="City"
-                value={org.city}
-                onChange={(e) => {
-                  setOrg({ ...org, city: e.target.value });
-                  setFieldError('city');
+              <Select
+                label="Business Type"
+                options={BUSINESS_TYPE_OPTIONS}
+                value={org.businessType}
+                onChange={(val) => {
+                  setOrg({ ...org, businessType: val });
+                  setFieldError('businessType');
                   invalidateIdempotencyKey();
                 }}
-                error={errors.city}
+                error={errors.businessType}
               />
             </div>
             <div className="grid grid-cols-1">
@@ -263,13 +278,26 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
                 error={errors.addressLine1}
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6">
+              <Select
+                label="City"
+                options={cityOptions}
+                value={org.city}
+                disabled={!org.stateOption}
+                onChange={(val) => {
+                  setOrg({ ...org, city: val });
+                  setFieldError('city');
+                  invalidateIdempotencyKey();
+                }}
+                error={errors.city}
+              />
               <Select
                 label="State"
                 options={STATE_OPTIONS}
                 value={org.stateOption}
                 onChange={(val) => {
-                  setOrg({ ...org, stateOption: val });
+                  const cityStillValid = INDIA_STATE_CITIES[parseStateCode(val)]?.includes(org.city);
+                  setOrg({ ...org, stateOption: val, city: cityStillValid ? org.city : '' });
                   setFieldError('stateOption');
                   invalidateIdempotencyKey();
                 }}
@@ -287,6 +315,11 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
                 error={errors.pinCode}
               />
             </div>
+            {!org.stateOption && (
+              <p className="text-[12px] text-gray-400 dark:text-gray-500 -mt-6 mb-6">
+                Select a state to unlock its city list.
+              </p>
+            )}
 
             <div className="flex justify-end mt-2">
               <button
@@ -327,10 +360,6 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
                   }}
                   error={errors.gstin}
                 />
-                <p className="text-[12px] text-gray-400 dark:text-gray-500 -mt-8 mb-6">
-                  Live GSTIN verification isn't available yet — it will be enabled once a provider is configured.
-                  Your GSTIN is still checked for a valid format.
-                </p>
               </>
             )}
 
@@ -353,6 +382,18 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
 
         {step === 3 && (
           <div className="animate-fade-in">
+            <div className="grid grid-cols-1">
+              <Input
+                label="Owner Name"
+                value={owner.name}
+                onChange={(e) => {
+                  setOwner({ ...owner, name: e.target.value });
+                  setFieldError('name');
+                  invalidateIdempotencyKey();
+                }}
+                error={errors.name}
+              />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
               <Input
                 label="Phone Number"
@@ -433,6 +474,7 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
                 </h3>
                 <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded text-[14px] space-y-1 border border-gray-100 dark:border-gray-700">
                   <p><span className="font-medium">Name:</span> {org.businessName}</p>
+                  <p><span className="font-medium">Business Type:</span> {org.businessType}</p>
                   <p><span className="font-medium">Address:</span> {org.addressLine1}, {org.city}</p>
                   <p><span className="font-medium">State:</span> {org.stateOption}</p>
                   <p><span className="font-medium">PIN:</span> {org.pinCode}</p>
@@ -445,6 +487,7 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
                   Owner Account
                 </h3>
                 <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded text-[14px] space-y-1 border border-gray-100 dark:border-gray-700">
+                  <p><span className="font-medium">Name:</span> {owner.name}</p>
                   <p><span className="font-medium">Phone:</span> {owner.phone}</p>
                   <p><span className="font-medium">Email:</span> {owner.email}</p>
                 </div>
@@ -484,7 +527,7 @@ const SignUp: React.FC<SignUpProps> = ({ onChangeView }) => {
 
         <div className="text-center border-t border-gray-200 dark:border-gray-600 pt-6 mt-6">
           <p className="text-[12px] md:text-[14px] text-gray-600 dark:text-gray-400">
-            Already have a Saas App account?{' '}
+            Already have a GroBook 360 account?{' '}
             <button onClick={() => onChangeView(AuthView.SIGN_IN)} className="text-blue-600 dark:text-blue-400 font-bold hover:underline">
               Sign In / Log In
             </button>

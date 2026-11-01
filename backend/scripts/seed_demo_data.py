@@ -187,6 +187,26 @@ async def get_or_create_user(client: AsyncClient, *, name: str, phone: str, emai
     return record
 
 
+async def update_company_profile(client: AsyncClient, **updates: Any) -> dict:
+    """PATCH /tenant via the real API — idempotent to re-run since it always
+    reads the CURRENT row first (including its row_version) rather than
+    assuming an initial state, same "drive the real HTTP API" discipline as
+    every other helper in this script."""
+    current = await call(client, "GET", "/tenant")
+    payload = {
+        key: current[key]
+        for key in (
+            "business_name", "gstin", "state_code", "address_line1", "city", "pin_code",
+            "pan", "business_type", "phone", "email", "website",
+            "bank_name", "bank_account_number", "bank_account_holder_name", "bank_ifsc",
+            "bank_branch_name", "bank_account_type", "bank_upi_id",
+        )
+    }
+    payload.update(updates)
+    payload["expected_row_version"] = current["row_version"]
+    return await call(client, "PATCH", "/tenant", json=payload)
+
+
 async def get_or_create_uom(client: AsyncClient, code: str, name: str, precision: int = 2) -> str:
     existing = await find_one(client, "/units", lambda u: u.get("code") == code)
     if existing:
@@ -303,6 +323,27 @@ async def seed_umayal() -> dict:
             async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as vc:
                 v = await login(vc, phone, SHARED_PASSWORD)
                 print(f"verified login for {phone}: user_id={v['user']['id']}")
+
+        # --- Company Profile (migration 0033) ---
+        # PAN below is exactly the 10-char PAN embedded in this tenant's own
+        # GSTIN ("33UMAYA1234A1Z5"[2:12] == "UMAYA1234A"), not an unrelated
+        # made-up value — real GSTINs always encode the holder's PAN this way.
+        await update_company_profile(
+            owner_client,
+            pan="UMAYA1234A",
+            business_type="Super Stockist",
+            phone="9800000001",
+            email="owner@umayalagency.test",
+            website="www.umayalagency.test",
+            bank_name="HDFC Bank",
+            bank_account_number="50200012345678",
+            bank_account_holder_name="Umayal Agency",
+            bank_ifsc="HDFC0001234",
+            bank_branch_name="Madurai Main",
+            bank_account_type="Current",
+            bank_upi_id="umayalagency@hdfc",
+        )
+        report["data"].append("Company Profile: PAN/business type/contact/bank details set")
 
         # --- Units of measure ---
         pcs_id = await get_or_create_uom(owner_client, "PCS", "Pieces", 0)
@@ -869,6 +910,27 @@ async def seed_atsm() -> dict:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as vc:
             v = await login(vc, "9800002102", SHARED_PASSWORD)
             print(f"verified login for 9800002102: user_id={v['user']['id']}")
+
+        # --- Company Profile (migration 0033) ---
+        # PAN below is the 10-char PAN embedded in this tenant's own GSTIN
+        # ("29ATSMT4321A1Z7"[2:12] == "ATSMT4321A"), same pattern as Umayal
+        # Agency above.
+        await update_company_profile(
+            owner_client,
+            pan="ATSMT4321A",
+            business_type="Distributor",
+            phone="9800002101",
+            email="owner@atsmtraders.test",
+            website="www.atsmtraders.test",
+            bank_name="ICICI Bank",
+            bank_account_number="602345678901",
+            bank_account_holder_name="ATSM Traders",
+            bank_ifsc="ICIC0006023",
+            bank_branch_name="Commercial Street",
+            bank_account_type="Current",
+            bank_upi_id="atsmtraders@icici",
+        )
+        report["data"].append("Company Profile: PAN/business type/contact/bank details set")
 
         pcs_id = await get_or_create_uom(owner_client, "PCS", "Pieces", 0)
 

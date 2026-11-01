@@ -18,16 +18,28 @@ call site (`sales_invoice_service.py`, `sales_return_service.py`,
 method names, same parameters, same `-> str` return (now the real
 `journal_number` instead of an opaque `ACCPOST-<id>` string).
 
-No COGS/Inventory leg is ever posted (§56 OD-005/OD-006/OD-007/OD-024 —
-inventory valuation and COGS policy are not approved; the Stock Ledger
-remains the sole inventory source of truth, unchanged). No Goods Receipt
-journal exists (OD-008/OD-009/OD-025 — GR/IR clearing policy not
-approved). "Purchase Expense" is used as a deliberately generic
-placeholder for the purchase-side debit, not "Inventory" (OD-004/OD-010
-stay open pending the perpetual-vs-periodic decision).
+No COGS/Inventory leg is ever posted for the Sales/Purchase document
+chains (§56 OD-005/OD-006/OD-007/OD-024 — that policy stays unapproved;
+"Purchase Expense" is still a deliberately generic placeholder for the
+purchase-side debit, not "Inventory" — OD-004/OD-010 stay open). No
+Goods Receipt journal exists (OD-008/OD-009/OD-025 — GR/IR clearing
+policy not approved).
+
+**Manual Stock Movements ARE posted** (Opening Stock / Stock In / Stock
+Out / Adjustment, via `InventoryService`'s 4 public entry points) — a
+narrower, separate decision: those 4 actions value stock at Weighted
+Average Cost (`Product.cost_price`, maintained by `InventoryService`
+itself, never recomputed here) and post to the new `INVENTORY`/
+`OPENING_BALANCE_EQUITY`/`STOCK_ADJUSTMENT` accounts. This does NOT
+reopen OD-004/OD-005/OD-006/OD-007/OD-010 above — Sales/Purchase
+document posting is completely untouched; only genuinely manual
+quantity-and-cost entries get a journal, and only when a cost is
+actually known (never a fabricated/zero-value journal — see the
+`amount <= 0: return None` guard on each of the 3 methods below).
 """
 
 import uuid
+from datetime import date
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,6 +53,8 @@ from app.core.accounting_constants import (
     INPUT_CGST,
     INPUT_IGST,
     INPUT_SGST,
+    INVENTORY,
+    OPENING_BALANCE_EQUITY,
     OUTPUT_CGST,
     OUTPUT_IGST,
     OUTPUT_SGST,
@@ -54,12 +68,17 @@ from app.core.accounting_constants import (
     SRC_CREDIT_NOTE,
     SRC_CUSTOMER_RECEIPT,
     SRC_DEBIT_NOTE,
+    SRC_MANUAL_STOCK_IN,
+    SRC_MANUAL_STOCK_OUT,
+    SRC_OPENING_STOCK,
     SRC_PAYROLL_RUN,
     SRC_PURCHASE_INVOICE,
     SRC_PURCHASE_RETURN,
     SRC_SALES_INVOICE,
     SRC_SALES_RETURN,
+    SRC_STOCK_ADJUSTMENT,
     SRC_SUPPLIER_PAYMENT,
+    STOCK_ADJUSTMENT,
     UPI_ACCOUNT,
 )
 from app.models.credit_debit_note import CREDIT_NOTE, CreditDebitNote
@@ -95,6 +114,10 @@ _SOURCE_ENTITY_TYPE = {
     SRC_CUSTOMER_RECEIPT: "payment",
     SRC_SUPPLIER_PAYMENT: "payment",
     SRC_PAYROLL_RUN: "payroll_run",
+    SRC_OPENING_STOCK: "stock_ledger_entry",
+    SRC_MANUAL_STOCK_IN: "stock_ledger_entry",
+    SRC_MANUAL_STOCK_OUT: "stock_ledger_entry",
+    SRC_STOCK_ADJUSTMENT: "stock_ledger_entry",
 }
 
 
@@ -386,3 +409,83 @@ class AccountingPostingService:
             tenant_id=tenant_id, actor_user_id=actor_user_id, source_type=SRC_PAYROLL_RUN, source_id=payroll_run_id, ip_address=ip_address,
         )
         return journal.journal_number if journal else None
+
+    # --- Manual Stock Movements (Weighted Average Cost) ---------------------
+    # Called by InventoryService's 4 public entry points after post_movement
+    # has already written the stock_ledger_entry/stock_qty_cache update —
+    # these 3 methods are purely about the VALUE of that movement, using
+    # whatever cost InventoryService resolved (entered unit_cost, or the
+    # product's current weighted-average cost_price). `source_id` is the
+    # StockLedgerEntry's own id, guaranteeing one journal per movement.
+    # Never posts a zero/fabricated-value journal: `amount <= 0` (no known
+    # cost) returns None and InventoryService's caller just has a stock
+    # movement with no accounting entry, same as before this feature existed.
+
+    async def post_opening_stock(
+        self, *, tenant_id: uuid.UUID, actor_user_id: uuid.UUID, source_id: uuid.UUID, movement_date: date,
+        amount: Decimal, description: str, ip_address: str | None,
+    ) -> str | None:
+        """DR Inventory / CR Opening Balance Equity — the one-time
+        starting value of a product's stock."""
+        if amount <= 0:
+            return None
+        lines = [
+            JournalLineInput(posting_rule_code=INVENTORY, debit=amount),
+            JournalLineInput(posting_rule_code=OPENING_BALANCE_EQUITY, credit=amount),
+        ]
+        journal = await self._journals.post_journal(
+            tenant_id=tenant_id, actor_user_id=actor_user_id, source_type=SRC_OPENING_STOCK, source_id=source_id,
+            source_number=None, journal_date=movement_date, description=description, lines=lines, ip_address=ip_address,
+        )
+        await self._record_posted_audit(
+            tenant_id=tenant_id, actor_user_id=actor_user_id, source_type=SRC_OPENING_STOCK, source_id=source_id,
+            journal_number=journal.journal_number, ip_address=ip_address,
+        )
+        return journal.journal_number
+
+    async def post_stock_increase(
+        self, *, tenant_id: uuid.UUID, actor_user_id: uuid.UUID, source_type: str, source_id: uuid.UUID,
+        movement_date: date, amount: Decimal, description: str, ip_address: str | None,
+    ) -> str | None:
+        """DR Inventory / CR Stock Adjustment — manual Stock In or an
+        Adjustment in the IN direction (quantity found/corrected upward).
+        `source_type` is SRC_MANUAL_STOCK_IN or SRC_STOCK_ADJUSTMENT."""
+        if amount <= 0:
+            return None
+        lines = [
+            JournalLineInput(posting_rule_code=INVENTORY, debit=amount),
+            JournalLineInput(posting_rule_code=STOCK_ADJUSTMENT, credit=amount),
+        ]
+        journal = await self._journals.post_journal(
+            tenant_id=tenant_id, actor_user_id=actor_user_id, source_type=source_type, source_id=source_id,
+            source_number=None, journal_date=movement_date, description=description, lines=lines, ip_address=ip_address,
+        )
+        await self._record_posted_audit(
+            tenant_id=tenant_id, actor_user_id=actor_user_id, source_type=source_type, source_id=source_id,
+            journal_number=journal.journal_number, ip_address=ip_address,
+        )
+        return journal.journal_number
+
+    async def post_stock_decrease(
+        self, *, tenant_id: uuid.UUID, actor_user_id: uuid.UUID, source_type: str, source_id: uuid.UUID,
+        movement_date: date, amount: Decimal, description: str, ip_address: str | None,
+    ) -> str | None:
+        """DR Stock Adjustment / CR Inventory — manual Stock Out or an
+        Adjustment in the OUT direction (damage/shrinkage/correction
+        downward), valued at the product's current weighted-average cost.
+        `source_type` is SRC_MANUAL_STOCK_OUT or SRC_STOCK_ADJUSTMENT."""
+        if amount <= 0:
+            return None
+        lines = [
+            JournalLineInput(posting_rule_code=STOCK_ADJUSTMENT, debit=amount),
+            JournalLineInput(posting_rule_code=INVENTORY, credit=amount),
+        ]
+        journal = await self._journals.post_journal(
+            tenant_id=tenant_id, actor_user_id=actor_user_id, source_type=source_type, source_id=source_id,
+            source_number=None, journal_date=movement_date, description=description, lines=lines, ip_address=ip_address,
+        )
+        await self._record_posted_audit(
+            tenant_id=tenant_id, actor_user_id=actor_user_id, source_type=source_type, source_id=source_id,
+            journal_number=journal.journal_number, ip_address=ip_address,
+        )
+        return journal.journal_number

@@ -6,6 +6,7 @@ from app.core.validators import is_valid_email, is_valid_gstin, is_valid_phone, 
 
 class OrganizationDetails(BaseModel):
     business_name: str = Field(min_length=1, max_length=200)
+    business_type: str | None = Field(default=None, max_length=50)
     address_line1: str = Field(min_length=1, max_length=255)
     city: str = Field(min_length=1, max_length=100)
     state_code: str
@@ -38,6 +39,7 @@ class OwnerAccountDetails(BaseModel):
     # Email is mandatory: FRD FR-SU-04 lists it as a "Must"-priority captured
     # field at sign-up, and Database Design v3.0 marks user.email NOT NULL —
     # both baseline sources agree, so this is NOT a silently-invented rule.
+    name: str | None = Field(default=None, max_length=200)
     phone: str
     email: str
     password: str

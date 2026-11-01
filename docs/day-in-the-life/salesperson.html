@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Salesperson's Day — Login to Logout</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>🧑‍🔧 A Day in the Life — Salesperson</h1>
+    <nav class="role-nav">
+      <a href="index.html">All Roles</a>
+      <a href="owner.html">Owner</a>
+      <a href="manager.html">Manager</a>
+      <a href="salesperson.html" class="active">Salesperson</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <div class="intro-card">
+      <h2>You're out in the field, visiting customers.</h2>
+      <p>Your day is about customers — visiting them, taking their orders, billing them, and collecting payment.
+      The bigger approvals (dispatching stock, posting the final bill) go to your Manager or Owner, but you handle
+      everything up to that point yourself, right from your phone. Click any step for a bit more detail.</p>
+    </div>
+
+    <div class="timeline">
+      <div class="login-card">
+        <h3>🔑 You log in</h3>
+        <p>You open the app on your phone before heading out — phone number and password, and you're in.</p>
+      </div>
+
+      <div class="day-marker">Morning</div>
+
+      <div class="step">
+        <div class="step-row"><span class="step-emoji">🏠</span><span class="step-title">You check your own numbers</span>
+          <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+        <p class="step-summary">A simpler dashboard — your sales, stock levels, what's happening today.</p>
+        <div class="step-detail">
+          <p>Your home screen is a bit simpler than your Manager's — it's focused on sales and stock, not company
+          finances. You can see today's activity and jump straight into creating a new invoice or order.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-row"><span class="step-emoji">📍</span><span class="step-title">You pull up a customer before visiting them</span>
+          <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+        <p class="step-summary">See their details, their order history, even get directions to their shop.</p>
+        <div class="step-detail">
+          <p>You search for the customer, see everything about them in one place — past orders, what they owe —
+          and if their location is saved, you can tap to get directions straight to their door. If you're visiting
+          someone new, you add them to the system on the spot.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-row"><span class="step-emoji">📝</span><span class="step-title">You prepare a quotation</span>
+          <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+        <p class="step-summary">If they're still deciding, you give them a price list to think over.</p>
+        <div class="step-detail">
+          <p>You pick the products they're interested in, the app works out the pricing and tax automatically, and
+          you can send it to them to review before they commit.</p>
+        </div>
+      </div>
+
+      <div class="day-marker">Midday</div>
+
+      <div class="step">
+        <div class="step-row"><span class="step-emoji">🛒</span><span class="step-title">You take their order</span>
+          <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+        <p class="step-summary">They're ready to buy — you log what they want.</p>
+        <div class="step-detail">
+          <p>You create the order right there with the customer. It then goes to your Manager or Owner to confirm,
+          which is what tells the warehouse it's ready to be packed.</p>
+          <span class="role-note">Your Manager or Owner gives the final confirmation before it's packed</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-row"><span class="step-emoji">🚚</span><span class="step-title">You prepare the delivery note</span>
+          <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+        <p class="step-summary">If you're handling the delivery side too, you note down what's going out.</p>
+        <div class="step-detail">
+          <p>You put together the delivery note for the order. Your Manager or Owner confirms it when it actually
+          leaves — that's the moment stock officially goes down.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-row"><span class="step-emoji">🧾</span><span class="step-title">You bill the customer</span>
+          <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+        <p class="step-summary">You put together the invoice — your Manager or Owner finalizes it.</p>
+        <div class="step-detail">
+          <p>You prepare the invoice with all the right products and pricing. Posting it — making it official and
+          starting the payment clock — is the last step your Manager or Owner takes.</p>
+        </div>
+      </div>
+
+      <div class="day-marker">Afternoon</div>
+
+      <div class="step">
+        <div class="step-row"><span class="step-emoji">💵</span><span class="step-title">You collect payment on the spot</span>
+          <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+        <p class="step-summary">The customer pays you right there — you log it immediately.</p>
+        <div class="step-detail">
+          <p>Whether it's cash, a bank transfer, or a cheque, you record the payment immediately against their
+          invoice, right from your phone — no need to wait until you're back at the office.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-row"><span class="step-emoji">↩️</span><span class="step-title">You handle a return, if needed</span>
+          <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+        <p class="step-summary">Something's damaged or wrong — you note it down.</p>
+        <div class="step-detail">
+          <p>If a customer needs to return something, you log it with a reason. Your Manager or Owner confirms it,
+          which is what brings the stock back in.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-row"><span class="step-emoji">📶</span><span class="step-title">No signal? No problem.</span>
+          <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+        <p class="step-summary">If you're somewhere with bad network, you can still work.</p>
+        <div class="step-detail">
+          <p>You can still create an invoice or add a customer even when you're offline — it's saved on your phone
+          and automatically sent through the moment you're back online, so you never lose a sale because of
+          signal.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-row"><span class="step-emoji">📈</span><span class="step-title">You check how you're doing</span>
+          <svg class="step-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg></div>
+        <p class="step-summary">Your own sales numbers — not the whole company's.</p>
+        <div class="step-detail">
+          <p>You can see your own sales performance — how many invoices, how much you've sold. You see your own
+          numbers, not what everyone else on the team is doing.</p>
+          <span class="role-note">You see your own performance, not the whole team's</span>
+        </div>
+      </div>
+
+      <div class="logout-card">
+        <h3>🌙 You log out</h3>
+        <p>End of your rounds, you log out. Everything you logged today is saved and visible to your Manager and
+        Owner right away.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer class="flow-footer">Every step here is a real, working part of the app — just explained without the technical details.</footer>
+
+  <script src="assets/timeline.js"></script>
+</body>
+</html>

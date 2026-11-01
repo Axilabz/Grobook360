@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, Plus, X, Loader2, AlertTriangle, Receipt, CheckCircle2,
-  Ban, ChevronLeft, ChevronRight, Eye, FileText, Trash2, RotateCcw, Printer,
+  Ban, ChevronLeft, ChevronRight, Eye, FileText, Trash2, RotateCcw, Printer, Wallet,
 } from 'lucide-react';
 import Input from './Input';
 import InvoiceRenderer, { InvoiceRenderData, BusinessProfileData } from '../shared/InvoiceRenderer';
+import { useBusinessProfile } from '../shared/useBusinessProfile';
 import { getInvoiceTemplateConfig, InvoiceTemplateConfig } from '../api/configuration';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useNavigation } from '../context/NavigationContext';
 import MobileFilterToggle from '../shared/MobileFilterToggle';
 import ExportButton from '../shared/ExportButton';
 import { ApiError } from '../api/client';
@@ -15,12 +17,14 @@ import {
   SalesInvoiceListItem,
   SalesInvoiceDetail,
   ReturnEligibility,
+  PaymentHistoryEntry,
   listSalesInvoices,
   getSalesInvoice,
   createDirectInvoice,
   postSalesInvoice,
   cancelSalesInvoice,
   getReturnEligibility,
+  getInvoicePaymentHistory,
 } from '../api/salesInvoices';
 import { createSalesReturn, RETURN_REASONS, ReturnReason } from '../api/salesReturns';
 import { Customer } from '../api/customers';
@@ -42,10 +46,12 @@ const TYPE_LABEL: Record<string, string> = {
 const SalesInvoiceManagement: React.FC = () => {
   const { hasPermission } = useAuth();
   const { showToast } = useToast();
+  const { consumeParams, navigate } = useNavigation();
   const canCreate = hasPermission('sales_invoice.create');
   const canPost = hasPermission('sales_invoice.post');
   const canCancel = hasPermission('sales_invoice.cancel');
   const canCreateReturn = hasPermission('sales_return.create');
+  const canRecordCollection = hasPermission('customer_receipt.create');
 
   const [items, setItems] = useState<SalesInvoiceListItem[]>([]);
   const [page, setPage] = useState(1);
@@ -79,6 +85,14 @@ const SalesInvoiceManagement: React.FC = () => {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+
+  // Arrived here from the header search (a specific invoice picked from its
+  // results) — open that invoice's detail view directly.
+  useEffect(() => {
+    const params = consumeParams('Sales Invoices');
+    if (params?.id) setViewingId(params.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="max-w-[98%] mx-auto p-4 md:p-6 animate-fade-in">
@@ -136,7 +150,7 @@ const SalesInvoiceManagement: React.FC = () => {
                   <tr>
                     {[
                       { label: 'Invoice #', align: 'text-left' }, { label: 'Date', align: 'text-right' }, { label: 'Customer', align: 'text-left' },
-                      { label: 'Type', align: 'text-left' }, { label: 'Amount', align: 'text-right' }, { label: 'GST', align: 'text-right' },
+                      { label: 'Type', align: 'text-left' }, { label: 'Amount', align: 'text-right' }, { label: 'Outstanding', align: 'text-right' },
                       { label: 'Status', align: 'text-left' }, { label: 'Source', align: 'text-left' }, { label: 'Actions', align: 'text-center' },
                     ].map((h) => (
                       <th key={h.label} className={`px-6 py-3 text-[12px] font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider ${h.align}`}>{h.label}</th>
@@ -153,7 +167,16 @@ const SalesInvoiceManagement: React.FC = () => {
                       <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-left">{inv.customer_name}</td>
                       <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-left">{TYPE_LABEL[inv.invoice_type]}</td>
                       <td className="px-6 py-4 text-[14px] text-gray-700 dark:text-gray-300 whitespace-nowrap text-right">₹{inv.grand_total}</td>
-                      <td className="px-6 py-4 text-[13px] text-gray-500 dark:text-gray-400 whitespace-nowrap text-right">₹{inv.tax_total}</td>
+                      <td className="px-6 py-4 text-[13px] whitespace-nowrap text-right">
+                        {(() => {
+                          const outstanding = (Number(inv.grand_total) - Number(inv.paid_amount)).toFixed(2);
+                          return (
+                            <span className={Number(outstanding) > 0 ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-gray-400 dark:text-gray-500'}>
+                              ₹{outstanding}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-left">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[inv.status]}`}>{inv.status}</span>
                       </td>
@@ -163,9 +186,20 @@ const SalesInvoiceManagement: React.FC = () => {
                         ) : 'Direct'}
                       </td>
                       <td className="px-6 py-4 text-center whitespace-nowrap">
-                        <button onClick={() => setViewingId(inv.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View">
-                          <Eye size={16} />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button onClick={() => setViewingId(inv.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View">
+                            <Eye size={16} />
+                          </button>
+                          {canRecordCollection && inv.status === 'POSTED' && inv.payment_status !== 'PAID' && (
+                            <button
+                              onClick={() => navigate('Customer Receipts', { createForInvoiceId: inv.id })}
+                              className="p-1.5 rounded hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600 dark:text-green-400"
+                              title="Record Collection"
+                            >
+                              <Wallet size={16} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -185,6 +219,9 @@ const SalesInvoiceManagement: React.FC = () => {
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_BADGE[inv.status]}`}>{inv.status}</span>
                 </div>
                 <p className="text-[13px] text-gray-600 dark:text-gray-300">₹{inv.grand_total} · {inv.invoice_date}</p>
+                {Number(inv.grand_total) - Number(inv.paid_amount) > 0 && (
+                  <p className="text-[12px] text-amber-600 dark:text-amber-400 mt-1">Outstanding: ₹{(Number(inv.grand_total) - Number(inv.paid_amount)).toFixed(2)}</p>
+                )}
               </button>
             ))}
           </div>
@@ -209,7 +246,8 @@ const SalesInvoiceManagement: React.FC = () => {
           invoiceId={viewingId}
           onClose={() => setViewingId(null)}
           onChanged={fetchInvoices}
-          permissions={{ canPost, canCancel, canCreateReturn }}
+          permissions={{ canPost, canCancel, canCreateReturn, canRecordCollection }}
+          onRecordCollection={(id) => { setViewingId(null); navigate('Customer Receipts', { createForInvoiceId: id }); }}
         />
       )}
     </div>
@@ -327,11 +365,13 @@ const DirectInvoiceFormModal: React.FC<{ onClose: () => void; onSaved: () => voi
 };
 
 interface DetailPermissions {
-  canPost: boolean; canCancel: boolean; canCreateReturn: boolean;
+  canPost: boolean; canCancel: boolean; canCreateReturn: boolean; canRecordCollection: boolean;
 }
 
-const InvoiceDetailModal: React.FC<{ invoiceId: string; onClose: () => void; onChanged: () => void; permissions: DetailPermissions }> = ({
-  invoiceId, onClose, onChanged, permissions,
+const InvoiceDetailModal: React.FC<{
+  invoiceId: string; onClose: () => void; onChanged: () => void; permissions: DetailPermissions; onRecordCollection: (invoiceId: string) => void;
+}> = ({
+  invoiceId, onClose, onChanged, permissions, onRecordCollection,
 }) => {
   const { showToast } = useToast();
   const [invoice, setInvoice] = useState<SalesInvoiceDetail | null>(null);
@@ -340,6 +380,8 @@ const InvoiceDetailModal: React.FC<{ invoiceId: string; onClose: () => void; onC
   const [isActing, setIsActing] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentHistoryEntry[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -354,7 +396,19 @@ const InvoiceDetailModal: React.FC<{ invoiceId: string; onClose: () => void; onC
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceId]);
 
-  useEffect(() => { load(); }, [load]);
+  const loadHistory = useCallback(async () => {
+    setIsLoadingHistory(true);
+    try {
+      setPaymentHistory(await getInvoicePaymentHistory(invoiceId));
+    } catch {
+      // Non-critical — the invoice itself already loaded; just leave history empty.
+    } finally {
+      setIsLoadingHistory(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoiceId]);
+
+  useEffect(() => { load(); loadHistory(); }, [load, loadHistory]);
 
   const runAction = async (fn: () => Promise<unknown>, successMsg: string) => {
     setIsActing(true);
@@ -448,6 +502,47 @@ const InvoiceDetailModal: React.FC<{ invoiceId: string; onClose: () => void; onC
           )}
 
           {invoice.notes && <p className="text-gray-600 dark:text-gray-300"><span className="text-gray-400 text-[12px] uppercase block">Notes</span>{invoice.notes}</p>}
+
+          {invoice.status === 'POSTED' && (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-[13px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide flex items-center gap-1.5">
+                  <Wallet size={14} /> Payment History
+                </h4>
+                <span className={Number(invoice.grand_total) - Number(invoice.paid_amount) > 0 ? 'text-[12px] text-amber-600 dark:text-amber-400 font-medium' : 'text-[12px] text-gray-400'}>
+                  Outstanding: ₹{(Number(invoice.grand_total) - Number(invoice.paid_amount)).toFixed(2)}
+                </span>
+              </div>
+              {isLoadingHistory ? (
+                <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-gray-400" /></div>
+              ) : paymentHistory.length === 0 ? (
+                <p className="text-[13px] text-gray-400 italic">No collections recorded yet.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {paymentHistory.map((entry) => (
+                    <div key={entry.payment_id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-900 rounded-md px-3 py-2 text-[13px] border border-gray-200 dark:border-gray-700">
+                      <div>
+                        <span className="text-gray-900 dark:text-white font-medium">{entry.payment_number}</span>
+                        <span className="text-gray-500 dark:text-gray-400 ml-2">{entry.payment_date} · {entry.collected_by_name || 'Unknown'}</span>
+                        {entry.status !== 'POSTED' && (
+                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400">{entry.status}</span>
+                        )}
+                      </div>
+                      <span className="text-gray-700 dark:text-gray-300 font-medium">₹{entry.amount}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {permissions.canRecordCollection && Number(invoice.grand_total) - Number(invoice.paid_amount) > 0 && (
+                <button
+                  onClick={() => onRecordCollection(invoice.id)}
+                  className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-[13px] font-medium"
+                >
+                  <Wallet size={14} /> Record Collection
+                </button>
+              )}
+            </div>
+          )}
 
           <EinvoiceEwayBillPanel invoiceId={invoice.id} invoiceStatus={invoice.status} />
 
@@ -714,10 +809,7 @@ const InvoicePrintPreviewModal: React.FC<{ invoice: SalesInvoiceDetail; onClose:
     subtotal: invoice.subtotal, discount_total: invoice.discount_total, taxable_total: invoice.taxable_total,
     cgst_total: invoice.cgst_total, sgst_total: invoice.sgst_total, igst_total: invoice.igst_total, grand_total: invoice.grand_total,
   };
-  const business: BusinessProfileData = {
-    business_name: currentTenant?.business_name || 'Your Business', gstin: null,
-    address_line1: null, city: null, state_code: null, pin_code: null,
-  };
+  const business: BusinessProfileData = useBusinessProfile(currentTenant?.business_name);
 
   return (
     <div className="fixed inset-0 z-[70] bg-white dark:bg-gray-900 overflow-y-auto print:static">

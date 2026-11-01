@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory / Stock Ledger — Data Flow</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>📊 Inventory / Stock Ledger — Data Flow</h1>
+    <nav class="chain-nav">
+      <a href="index.html">Index</a>
+      <a href="sales-chain.html">Sales</a>
+      <a href="purchase-chain.html">Purchase</a>
+      <a href="payments-chain.html">Payments</a>
+      <a href="inventory-chain.html" class="active">Inventory</a>
+      <a href="payroll-chain.html">Payroll</a>
+      <a href="accounting-gst-engine.html">Accounting/GST</a>
+      <a href="reports-analysis-chain.html">Reports</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <div class="intro-card">
+      <code>InventoryService.post_movement()</code> (<code>app/services/inventory/inventory_service.py</code>) is the
+      ONE primitive every stock-moving action in this entire app calls through — never its own ad-hoc arithmetic.
+      <code>product.stock_qty_cache</code> is written ONLY here, in the same DB transaction as the
+      <code>stock_ledger_entry</code> insert that justifies it. The ledger is append-only (a genuine BEFORE UPDATE/
+      DELETE trigger — migration 0011 — rejects any later UPDATE, the same discipline as <code>audit_log</code>).
+      <strong>Only the 4 Manual actions below also post to Accounting</strong> — every other caller (8 document
+      types across Sales + Purchase) moves stock with zero accounting side-effect, by design.
+      <button id="expand-all" style="margin-left:12px;background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Expand all</button>
+      <button id="collapse-all" style="background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Collapse all</button>
+    </div>
+
+    <!-- Stage 1: The shared primitive -->
+    <div class="chain-stage">
+      <div class="stage-card open">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge readonly">Core</span> post_movement() — the shared primitive</div>
+          <div class="stage-sub">Called by 12 different document actions across this entire app</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><p class="none">Never called directly — always via a document's own action</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><p class="none">Never a direct endpoint — internal to the service layer</p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>InventoryService.post_movement()</code><p><code>app/services/inventory/inventory_service.py</code> — params: <code>movement_type</code>, <code>quantity</code>, <code>source_type</code>, <code>source_id</code>, optional <code>unit_cost</code>.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">stock_ledger_entry</span><span class="table-tag">product</span><p>One ledger row (append-only, immutable) + <code>product.stock_qty_cache</code> updated in the SAME transaction. Negative stock is rejected (409) by default.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><p class="none">None here — accounting (if any) is the CALLER's own responsibility, added AFTER this returns</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note-box">⚠ <code>source_type</code> is what distinguishes every caller below — the SAME function, 12 different callers, 12 different <code>source_type</code> values, each one's own document table as <code>source_id</code>.</div>
+
+    <!-- Table of document-triggered callers -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge readonly">Callers</span> Every document that moves stock (no accounting impact)</div>
+          <div class="stage-sub">8 document actions across the Sales and Purchase chains</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div style="padding:16px 18px;border-top:1px solid #22304d;overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+            <thead>
+              <tr style="color:#8b9ac4;text-align:left;text-transform:uppercase;font-size:10.5px;letter-spacing:0.04em;">
+                <th style="padding:6px 10px;">Document</th><th style="padding:6px 10px;">Action</th><th style="padding:6px 10px;">movement_type</th><th style="padding:6px 10px;">source_type</th>
+              </tr>
+            </thead>
+            <tbody style="color:#c7d2e8;">
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Delivery Challan</td><td style="padding:7px 10px;">Confirm</td><td style="padding:7px 10px;"><code>STOCK_OUT</code></td><td style="padding:7px 10px;"><code>DELIVERY_CHALLAN</code></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Sales Invoice (Direct)</td><td style="padding:7px 10px;">Post</td><td style="padding:7px 10px;"><code>STOCK_OUT</code></td><td style="padding:7px 10px;"><code>SALES_INVOICE</code></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Sales Return</td><td style="padding:7px 10px;">Confirm</td><td style="padding:7px 10px;"><code>STOCK_IN</code></td><td style="padding:7px 10px;"><code>SALES_RETURN</code></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Goods Receipt</td><td style="padding:7px 10px;">Confirm</td><td style="padding:7px 10px;"><code>STOCK_IN</code></td><td style="padding:7px 10px;"><code>GOODS_RECEIPT</code></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Goods Receipt</td><td style="padding:7px 10px;">Cancel (if confirmed)</td><td style="padding:7px 10px;"><code>STOCK_OUT</code></td><td style="padding:7px 10px;"><code>GOODS_RECEIPT_REVERSAL</code></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Purchase Invoice (Direct)</td><td style="padding:7px 10px;">Post</td><td style="padding:7px 10px;"><code>STOCK_IN</code></td><td style="padding:7px 10px;"><code>PURCHASE_INVOICE</code></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Purchase Invoice (Direct)</td><td style="padding:7px 10px;">Cancel (if posted)</td><td style="padding:7px 10px;"><code>STOCK_OUT</code></td><td style="padding:7px 10px;"><code>PURCHASE_INVOICE_REVERSAL</code></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Purchase Return</td><td style="padding:7px 10px;">Confirm</td><td style="padding:7px 10px;"><code>STOCK_OUT</code></td><td style="padding:7px 10px;"><code>PURCHASE_RETURN</code></td></tr>
+              <tr style="border-top:1px solid #22304d;"><td style="padding:7px 10px;">Purchase Return</td><td style="padding:7px 10px;">Cancel (if confirmed)</td><td style="padding:7px 10px;"><code>STOCK_IN</code></td><td style="padding:7px 10px;"><code>PURCHASE_RETURN_REVERSAL</code></td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:11.5px;color:#5b6a8f;margin-top:10px;">A compensating reversal is always a NEW ledger row with a distinct <code>_REVERSAL</code> source_type, reusing the same <code>source_id</code> — the original entry is never edited or deleted (the immutability trigger wouldn't allow it anyway).</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stage: Manual movements with accounting -->
+    <div class="chain-stage">
+      <div class="stage-card open">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">Manual</span> The 4 Manual actions — ALSO post to Accounting</div>
+          <div class="stage-sub">Weighted Average Cost — the only stock movements that touch the ledger</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>InventoryManagement.tsx</code><p>Opening Stock / Stock In / Stock Out / Adjustment (IN or OUT), each with an optional "Unit Cost (₹ per base unit)" field.</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /inventory/opening-stock</code><code>POST /inventory/stock-in</code><code>POST /inventory/stock-out</code><code>POST /inventory/adjustments</code><p>Router: <code>app/api/v1/inventory.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>record_opening_stock()</code><code>record_stock_in()</code><code>record_stock_out()</code><code>record_adjustment()</code><p>Each resolves a cost BEFORE calling <code>post_movement()</code> (so it lands in the same INSERT — the table is append-only, no later UPDATE is possible).</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">stock_ledger_entry</span><span class="table-tag">product</span><p><code>stock_ledger_entry.unit_cost</code> (audit trail) + <code>product.cost_price</code> (the running weighted average, recomputed on every stock-in-direction movement, unchanged on any outflow).</p></div>
+          <div class="lane lane-side">
+            <div class="lane-label"><span class="dot"></span>Side-Effects</div>
+            <span class="side-tag">Accounting</span>
+            <p><code>AccountingPostingService.post_opening_stock()</code> (DR Inventory / CR Opening Balance Equity) · <code>post_stock_increase()</code> (DR Inventory / CR Stock Adjustment) · <code>post_stock_decrease()</code> (DR Stock Adjustment / CR Inventory).</p>
+            <p>Skipped entirely (no journal) when the resolved cost is 0 — never a fabricated/zero-value entry. The Sales/Purchase document chains above are completely unaffected by this — only these 4 manual actions call these 3 new methods.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note-box">💡 Cost resolution rule: Opening Stock sets the cost basis outright. Stock In / Adjustment-IN blend the entered cost into the running average (<code>new_avg = (old_qty·old_avg + new_qty·new_cost) / (old_qty+new_qty)</code>) — or, if no cost is entered, fall back to the current average unchanged. Stock Out / Adjustment-OUT always value at the current average and never change it.</div>
+  </main>
+
+  <footer class="flow-footer">Verified directly against backend source — app/services/inventory/inventory_service.py.</footer>
+
+  <script src="assets/flow.js"></script>
+</body>
+</html>

@@ -6,10 +6,12 @@ import {
 import Input from './Input';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useNavigation } from '../context/NavigationContext';
 import MobileFilterToggle from '../shared/MobileFilterToggle';
 import ExportButton from '../shared/ExportButton';
 import { ApiError } from '../api/client';
-import { Customer } from '../api/customers';
+import { Customer, getCustomer } from '../api/customers';
+import { getSalesInvoice } from '../api/salesInvoices';
 import CustomerSelector from '../shared/CustomerSelector';
 import {
   PaymentListItem, PaymentDetail, PaymentMethod, ChequeStatus, OutstandingInvoiceItem,
@@ -33,6 +35,7 @@ const CHEQUE_BADGE: Record<string, string> = {
 const CustomerReceiptManagement: React.FC = () => {
   const { hasPermission } = useAuth();
   const { showToast } = useToast();
+  const { consumeParams } = useNavigation();
   const canCreate = hasPermission('customer_receipt.create');
   const canPost = hasPermission('customer_receipt.post');
   const canReverse = hasPermission('customer_receipt.reverse');
@@ -47,7 +50,20 @@ const CustomerReceiptManagement: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [prefillInvoiceId, setPrefillInvoiceId] = useState<string | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
+
+  // Arrived here via the Sales Invoice list/detail's "Record Collection"
+  // shortcut — open the create form pre-scoped to that one invoice
+  // (reuses this same create flow rather than a second, parallel form).
+  useEffect(() => {
+    const params = consumeParams('Customer Receipts');
+    if (params?.createForInvoiceId) {
+      setPrefillInvoiceId(params.createForInvoiceId);
+      setShowCreateModal(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchReceipts = useCallback(async () => {
     setIsLoading(true);
@@ -191,7 +207,11 @@ const CustomerReceiptManagement: React.FC = () => {
       )}
 
       {showCreateModal && (
-        <ReceiptFormModal onClose={() => setShowCreateModal(false)} onSaved={() => { setShowCreateModal(false); fetchReceipts(); }} />
+        <ReceiptFormModal
+          initialInvoiceId={prefillInvoiceId}
+          onClose={() => { setShowCreateModal(false); setPrefillInvoiceId(null); }}
+          onSaved={() => { setShowCreateModal(false); setPrefillInvoiceId(null); fetchReceipts(); }}
+        />
       )}
 
       {viewingId && (
@@ -206,11 +226,12 @@ const CustomerReceiptManagement: React.FC = () => {
   );
 };
 
-const ReceiptFormModal: React.FC<{ onClose: () => void; onSaved: () => void }> = ({ onClose, onSaved }) => {
+const ReceiptFormModal: React.FC<{ initialInvoiceId?: string | null; onClose: () => void; onSaved: () => void }> = ({ initialInvoiceId, onClose, onSaved }) => {
   const { showToast } = useToast();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [outstanding, setOutstanding] = useState<OutstandingInvoiceItem[]>([]);
   const [isLoadingOutstanding, setIsLoadingOutstanding] = useState(false);
+  const [isLoadingPrefill, setIsLoadingPrefill] = useState(!!initialInvoiceId);
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
   const [method, setMethod] = useState<PaymentMethod>('CASH');
   const [amount, setAmount] = useState('');
@@ -222,13 +243,44 @@ const ReceiptFormModal: React.FC<{ onClose: () => void; onSaved: () => void }> =
   const [allocations, setAllocations] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Pre-scope to one invoice when arriving from the Sales Invoice screen's
+  // "Record Collection" shortcut — resolve the invoice's customer first
+  // (CustomerSelector needs a full Customer object), then let the
+  // outstanding-invoices effect below populate the allocation table as
+  // usual and pre-fill this one invoice's row + the Amount field.
   useEffect(() => {
-    if (!customer) { setOutstanding([]); setAllocations({}); return; }
+    if (!initialInvoiceId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const invoice = await getSalesInvoice(initialInvoiceId);
+        const cust = await getCustomer(invoice.customer_id);
+        if (cancelled) return;
+        setCustomer(cust);
+        const outstandingAmount = (Number(invoice.grand_total) - Number(invoice.paid_amount)).toFixed(2);
+        setAmount(outstandingAmount);
+        setAllocations({ [initialInvoiceId]: outstandingAmount });
+      } catch {
+        if (!cancelled) showToast('Failed to load the selected invoice.', 'error');
+      } finally {
+        if (!cancelled) setIsLoadingPrefill(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialInvoiceId]);
+
+  useEffect(() => {
+    if (!customer) { setOutstanding([]); if (!initialInvoiceId) setAllocations({}); return; }
     setIsLoadingOutstanding(true);
     getCustomerOutstandingInvoices(customer.id)
-      .then((res) => { setOutstanding(res.invoices); setAllocations({}); })
+      .then((res) => { setOutstanding(res.invoices); })
       .catch(() => setOutstanding([]))
       .finally(() => setIsLoadingOutstanding(false));
+    // Only reset allocations when the customer changes AWAY from the
+    // pre-filled invoice's own customer (e.g. user picks a different
+    // customer manually) — don't clobber the prefill set above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customer]);
 
   const totalAllocated: number = (Object.values(allocations) as string[]).reduce((sum: number, v: string) => sum + (Number(v) || 0), 0) as number;
@@ -281,7 +333,15 @@ const ReceiptFormModal: React.FC<{ onClose: () => void; onSaved: () => void }> =
           <h3 className="text-[18px] font-semibold text-gray-800 dark:text-gray-100 flex items-center gap-2"><Wallet size={18} /> New Customer Receipt</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><X size={20} /></button>
         </div>
+        {isLoadingPrefill ? (
+          <div className="flex justify-center py-16"><Loader2 size={24} className="animate-spin text-gray-400" /></div>
+        ) : (
         <div className="p-6">
+          {initialInvoiceId && (
+            <p className="mb-4 text-[13px] text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800 rounded-md px-3 py-2">
+              Pre-filled for the invoice you selected — adjust the amount or allocation below if needed.
+            </p>
+          )}
           <CustomerSelector value={customer} onChange={setCustomer} />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
@@ -337,7 +397,7 @@ const ReceiptFormModal: React.FC<{ onClose: () => void; onSaved: () => void }> =
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                       {outstanding.map((inv) => (
-                        <tr key={inv.invoice_id}>
+                        <tr key={inv.invoice_id} className={inv.invoice_id === initialInvoiceId ? 'bg-green-50 dark:bg-green-900/10' : undefined}>
                           <td className="py-2 pr-2">{inv.invoice_number}</td>
                           <td className="py-2 pr-2">{inv.invoice_date}</td>
                           <td className="py-2 pr-2">₹{inv.invoice_total}</td>
@@ -370,6 +430,7 @@ const ReceiptFormModal: React.FC<{ onClose: () => void; onSaved: () => void }> =
             {isSubmitting && <Loader2 size={18} className="animate-spin" />} Save Receipt
           </button>
         </div>
+        )}
       </div>
     </div>
   );

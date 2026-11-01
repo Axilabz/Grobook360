@@ -27,6 +27,7 @@ from app.core.login_lockout import is_locked, record_failure
 from app.core.rate_limit import check_rate_limit
 from app.core.security import decode_access_token
 from app.db.session import get_db_session
+from app.models.tenant import Tenant
 from app.schemas.auth import LoginRequest, LoginResponseData, MeResponseData, TenantSummary, UserSummary
 from app.schemas.signup import SignUpRequest, SignUpResult
 from app.services.auth.auth_service import AuthService
@@ -163,7 +164,9 @@ async def login(
         user=UserSummary(
             id=str(result.user.id), phone=result.user.phone, email=result.user.email, role=result.role_name
         ),
-        tenant=TenantSummary(id=str(result.tenant.id), business_name=result.tenant.business_name)
+        tenant=TenantSummary(
+            id=str(result.tenant.id), tenant_code=result.tenant.tenant_code, business_name=result.tenant.business_name
+        )
         if result.tenant
         else None,
         permissions=result.permissions,
@@ -196,10 +199,20 @@ async def logout(
 
 
 @router.get("/auth/me")
-async def me(context: AuthenticatedContext = Depends(get_current_user)) -> dict:
+async def me(
+    context: AuthenticatedContext = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+) -> dict:
+    tenant_summary = None
+    if context.tenant_id is not None:
+        tenant = await session.get(Tenant, context.tenant_id)
+        if tenant is not None:
+            tenant_summary = TenantSummary(id=str(tenant.id), tenant_code=tenant.tenant_code, business_name=tenant.business_name)
+
     data = MeResponseData(
         user_id=str(context.user_id),
         tenant_id=str(context.tenant_id) if context.tenant_id else None,
+        tenant=tenant_summary,
         role=context.role,
         permissions=list(context.permissions),
     )

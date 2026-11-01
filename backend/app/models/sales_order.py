@@ -89,3 +89,6 @@ class SalesOrder(UUIDPKMixin, Base, AuditColumnsMixin, RowVersionMixin):
     tax_total: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False, default=0)
     grand_total: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False, default=0)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Set only by cancel_order (migration 0037) — mirrors einvoice/eway_bill's
+    # own cancellation_reason precedent (PROMPT-018).
+    cancellation_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)

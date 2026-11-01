@@ -81,6 +81,7 @@ def _to_movement_item(entry: StockLedgerEntry, uom: UnitOfMeasure) -> StockMovem
         source_id=str(entry.source_id),
         occurred_at=entry.occurred_at.isoformat(),
         created_by=str(entry.created_by) if entry.created_by else None,
+        unit_cost=str(entry.unit_cost) if entry.unit_cost is not None else None,
     )
 
 
@@ -236,6 +237,7 @@ async def create_opening_stock(
             product_id=uuid.UUID(payload.product_id),
             quantity=payload.quantity,
             uom_id=uuid.UUID(payload.uom_id),
+            unit_cost=payload.unit_cost,
             ip_address=client_ip,
         )
         uom = await service.get_uom_or_raise(tenant_id, entry.uom_id)  # already validated; cheap re-fetch for response
@@ -272,6 +274,7 @@ async def create_stock_in(
             quantity=payload.quantity,
             uom_id=uuid.UUID(payload.uom_id),
             notes=payload.notes,
+            unit_cost=payload.unit_cost,
             ip_address=client_ip,
         )
         uom = await service.get_uom_or_raise(tenant_id, entry.uom_id)
@@ -345,6 +348,7 @@ async def create_adjustment(
             uom_id=uuid.UUID(payload.uom_id),
             direction=payload.direction,
             reason=payload.reason,
+            unit_cost=payload.unit_cost,
             ip_address=client_ip,
         )
         uom = await service.get_uom_or_raise(tenant_id, entry.uom_id)

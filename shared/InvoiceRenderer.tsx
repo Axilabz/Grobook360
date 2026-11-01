@@ -56,6 +56,8 @@ export interface BusinessProfileData {
   city: string | null;
   state_code: string | null;
   pin_code: string | null;
+  phone?: string | null;
+  email?: string | null;
 }
 
 interface InvoiceRendererProps {
@@ -114,9 +116,16 @@ const InvoiceRenderer: React.FC<InvoiceRendererProps> = ({ config, invoice, busi
           <div>
             <p className="text-[18px] font-bold" style={!isModern ? { color: config.primary_color } : undefined}>{business.business_name}</p>
             {config.show_business_address && (
-              <p className="opacity-80">
-                {[business.address_line1, business.city, business.state_code, business.pin_code].filter(Boolean).join(', ')}
-              </p>
+              <>
+                <p className="opacity-80">
+                  {[business.address_line1, business.city, business.state_code, business.pin_code].filter(Boolean).join(', ')}
+                </p>
+                {(business.phone || business.email) && (
+                  <p className="opacity-80">
+                    {[business.phone && `Phone: ${business.phone}`, business.email && `Email: ${business.email}`].filter(Boolean).join(' | ')}
+                  </p>
+                )}
+              </>
             )}
             {config.show_gstin && business.gstin && <p className="opacity-80">GSTIN: {business.gstin}</p>}
           </div>

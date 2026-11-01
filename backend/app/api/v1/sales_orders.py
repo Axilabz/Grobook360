@@ -34,6 +34,7 @@ from app.schemas.delivery_challan import DeliveryEligibility, DeliveryEligibilit
 from app.schemas.envelopes import Pagination
 from app.schemas.sales_estimate import UnitRef
 from app.schemas.sales_order import (
+    CancelSalesOrderRequest,
     CreateSalesOrderRequest,
     SalesOrderActionRequest,
     SalesOrderDetail,
@@ -130,6 +131,7 @@ def _to_detail(
         igst_total=str(order.igst_total),
         tax_total=str(order.tax_total),
         notes=order.notes,
+        cancellation_reason=order.cancellation_reason,
         lines=[_to_line_item(line, uom) for line, uom in lines],
     )
 
@@ -297,7 +299,7 @@ async def confirm_order(
 async def cancel_order(
     request: Request,
     order_id: uuid.UUID,
-    payload: SalesOrderActionRequest,
+    payload: CancelSalesOrderRequest,
     context: AuthenticatedContext = Depends(require_permission(SALES_ORDER_CANCEL)),
     session: AsyncSession = Depends(get_db_session),
 ) -> dict:
@@ -308,6 +310,7 @@ async def cancel_order(
         actor_user_id=context.user_id,
         order_id=order_id,
         expected_row_version=payload.expected_row_version,
+        cancellation_reason=payload.cancellation_reason,
         ip_address=request.client.host if request.client else "unknown",
     )
     await session.commit()

@@ -34,10 +34,19 @@ class UpdateSalesOrderRequest(BaseModel):
 
 
 class SalesOrderActionRequest(BaseModel):
-    """Shared body for confirm/cancel — pure status transitions guarded by
-    row_version (§20/§21)."""
+    """Body for confirm — a pure status transition guarded by row_version
+    (§20)."""
 
     expected_row_version: int
+
+
+class CancelSalesOrderRequest(BaseModel):
+    """Body for cancel — same row_version guard as confirm, plus a
+    required reason (mirrors EinvoiceCancelRequest/EwayBillCancelRequest's
+    own `reason` shape, PROMPT-018)."""
+
+    expected_row_version: int
+    cancellation_reason: str = Field(min_length=1, max_length=500)
 
 
 class SalesOrderLineItem(BaseModel):
@@ -88,4 +97,5 @@ class SalesOrderDetail(SalesOrderListItem):
     igst_total: str
     tax_total: str
     notes: str | None
+    cancellation_reason: str | None
     lines: list[SalesOrderLineItem]

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.accounting import router as accounting_router
+from app.api.v1.analysis import router as analysis_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.configuration import router as configuration_router
 from app.api.v1.parties import router as parties_router
@@ -31,6 +32,7 @@ from app.api.v1.sales_returns import router as sales_returns_router
 from app.api.v1.supplier_payments import router as supplier_payments_router
 from app.api.v1.suppliers import router as suppliers_router
 from app.api.v1.system import router as system_router
+from app.api.v1.tenant import router as tenant_router
 from app.api.v1.units import router as units_router
 from app.api.v1.users import router as users_router
 
@@ -68,3 +70,5 @@ api_router.include_router(payroll_router)
 api_router.include_router(exports_router)
 api_router.include_router(configuration_router)
 api_router.include_router(parties_router)
+api_router.include_router(tenant_router)
+api_router.include_router(analysis_router)

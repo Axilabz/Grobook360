@@ -10,7 +10,7 @@ interface LanguageContextType {
 
 const translations: Record<string, Record<Language, string>> = {
   // Common
-  'Saas App': { English: 'Saas App', Tamil: 'சாஸ் பயன்பாடு' },
+  'GroBook 360': { English: 'GroBook 360', Tamil: 'GroBook 360' },
   'Search': { English: 'Search', Tamil: 'தேடு' },
   'Or': { English: 'Or', Tamil: 'அல்லது' },
   'Back': { English: 'Back', Tamil: 'பின்செல்க' },
@@ -50,7 +50,7 @@ const translations: Record<string, Record<Language, string>> = {
   'Forget Password ?': { English: 'Forget Password ?', Tamil: 'கடவுச்சொல் மறந்துவிட்டதா?' },
   'Log in': { English: 'Log in', Tamil: 'உள்நுழை' },
   'Login with Google': { English: 'Login with Google', Tamil: 'கூகிள் மூலம் உள்நுழைக' },
-  "Don't have a Saas App Account ?": { English: "Don't have a Saas App Account ?", Tamil: 'சாஸ் பயன்பாட்டுக் கணக்கு இல்லையா?' },
+  "Don't have a GroBook 360 Account ?": { English: "Don't have a GroBook 360 Account ?", Tamil: 'GroBook 360 கணக்கு இல்லையா?' },
   'SIGN UP': { English: 'SIGN UP', Tamil: 'பதிவு செய்' },
   'Create An Account To Access Book': { English: 'Create An Account To Access Book', Tamil: 'புத்தகத்தை அணுக கணக்கை உருவாக்கவும்' },
   'Organization Details': { English: 'Organization Details', Tamil: 'நிறுவன விவரங்கள்' },
@@ -67,7 +67,7 @@ const translations: Record<string, Record<Language, string>> = {
   'Email ID': { English: 'Email ID', Tamil: 'மின்னஞ்சல் முகவரி' },
   'Confirm Password': { English: 'Confirm Password', Tamil: 'கடவுச்சொல்லை உறுதிப்படுத்தவும்' },
   'Password Rules': { English: 'Password Rules', Tamil: 'கடவுச்சொல் விதிகள்' },
-  'Already Have a Saas App Account ?': { English: 'Already Have a Saas App Account ?', Tamil: 'ஏற்கனவே கணக்கு உள்ளதா?' },
+  'Already Have a GroBook 360 Account ?': { English: 'Already Have a GroBook 360 Account ?', Tamil: 'ஏற்கனவே கணக்கு உள்ளதா?' },
   'Sign In / Log In': { English: 'Sign In / Log In', Tamil: 'உள்நுழை / புகுபதிகை' },
   'Sign Up': { English: 'Sign Up', Tamil: 'பதிவு செய்' },
   

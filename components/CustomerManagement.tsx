@@ -8,6 +8,7 @@ import Select from './Select';
 import PartyProfile from '../shared/PartyProfile';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useNavigation } from '../context/NavigationContext';
 import MobileFilterToggle from '../shared/MobileFilterToggle';
 import { ApiError, ConcurrencyConflictError } from '../api/client';
 import {
@@ -22,6 +23,7 @@ import {
 import { GST_STATE_CODES, stateNameForCode, stateCodeForName } from '../shared/gstStateCodes';
 import ExportButton from '../shared/ExportButton';
 import MobileAccordionCard from '../shared/MobileAccordionCard';
+import CustomerLocationMap from '../shared/CustomerLocationMap';
 
 const STATUS_BADGE: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -31,6 +33,7 @@ const STATUS_BADGE: Record<string, string> = {
 const CustomerManagement: React.FC = () => {
   const { hasPermission } = useAuth();
   const { showToast } = useToast();
+  const { consumeParams } = useNavigation();
   // Backend independently re-checks every call regardless of what this UI
   // shows (PROMPT-006 S27 pattern, carried into PROMPT-007).
   const canCreate = hasPermission('customers.create');
@@ -52,6 +55,7 @@ const CustomerManagement: React.FC = () => {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [viewingCustomer, setViewingCustomer] = useState<Customer | null>(null);
   const [profileCustomerId, setProfileCustomerId] = useState<string | null>(null);
+  const [mapCustomer, setMapCustomer] = useState<Customer | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ customer: Customer; type: 'activate' | 'deactivate' } | null>(null);
 
   const fetchCustomers = useCallback(async () => {
@@ -87,6 +91,14 @@ const CustomerManagement: React.FC = () => {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+
+  // Arrived here from the header search (a specific customer picked from
+  // its results) — open that customer's Party 360 profile directly.
+  useEffect(() => {
+    const params = consumeParams('Customers');
+    if (params?.id) setProfileCustomerId(params.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleConfirmStatusChange = async () => {
     if (!confirmAction) return;
@@ -222,6 +234,9 @@ const CustomerManagement: React.FC = () => {
                           <button onClick={() => setProfileCustomerId(customer.id)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="360° Profile">
                             <LayoutDashboard size={16} />
                           </button>
+                          <button onClick={() => setMapCustomer(customer)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="View on Map">
+                            <MapPin size={16} />
+                          </button>
                           {canEdit && (
                             <button onClick={() => setEditingCustomer(customer)} className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400" title="Edit">
                               <Pencil size={16} />
@@ -270,6 +285,9 @@ const CustomerManagement: React.FC = () => {
                   </button>
                   <button onClick={() => setProfileCustomerId(customer.id)} className="flex-1 flex items-center justify-center gap-1.5 text-[13px] py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
                     <LayoutDashboard size={14} /> 360°
+                  </button>
+                  <button onClick={() => setMapCustomer(customer)} className="flex-1 flex items-center justify-center gap-1.5 text-[13px] py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
+                    <MapPin size={14} /> Map
                   </button>
                   {canEdit && (
                     <button onClick={() => setEditingCustomer(customer)} className="flex-1 flex items-center justify-center gap-1.5 text-[13px] py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
@@ -342,6 +360,17 @@ const CustomerManagement: React.FC = () => {
             const customer = customers.find((c) => c.id === profileCustomerId);
             if (customer) { setEditingCustomer(customer); setProfileCustomerId(null); }
           } : undefined}
+        />
+      )}
+
+      {mapCustomer && (
+        <CustomerLocationMap
+          customer={mapCustomer}
+          onClose={() => setMapCustomer(null)}
+          onAddLocation={() => {
+            if (canEdit) { setEditingCustomer(mapCustomer); }
+            setMapCustomer(null);
+          }}
         />
       )}
 

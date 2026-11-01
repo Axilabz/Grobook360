@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Payments Chain — Data Flow</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>💰 Payments Chain — Data Flow</h1>
+    <nav class="chain-nav">
+      <a href="index.html">Index</a>
+      <a href="sales-chain.html">Sales</a>
+      <a href="purchase-chain.html">Purchase</a>
+      <a href="payments-chain.html" class="active">Payments</a>
+      <a href="inventory-chain.html">Inventory</a>
+      <a href="payroll-chain.html">Payroll</a>
+      <a href="accounting-gst-engine.html">Accounting/GST</a>
+      <a href="reports-analysis-chain.html">Reports</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <div class="intro-card">
+      Customer Receipt (money IN) and Supplier Payment (money OUT) are two thin, direction-specific routers sharing
+      ONE underlying <code>Payment</code>/<code>PaymentAllocation</code> model and ONE <code>PaymentService</code> —
+      §2's own central rule: a payment is never the same record as how it's applied to an invoice. Neither direction
+      ever touches the Stock Ledger or GST — this chain is pure Accounts Receivable/Payable settlement.
+      <button id="expand-all" style="margin-left:12px;background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Expand all</button>
+      <button id="collapse-all" style="background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Collapse all</button>
+    </div>
+
+    <!-- Stage 1: Create + Allocate -->
+    <div class="chain-stage">
+      <div class="stage-card open">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">1</span> Create &amp; Allocate (DRAFT)</div>
+          <div class="stage-sub">A DRAFT payment has zero financial effect — allocation here is a non-authoritative preview</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>CustomerReceiptManagement.tsx</code><code>SupplierPaymentManagement.tsx</code><p>Pick party → amount → allocate across that party's outstanding invoices (an "allocate oldest first" shortcut, server stays authoritative). Also reachable pre-filled from a Sales Invoice's own "Record Collection" action.</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /customer-receipts</code><code>POST /supplier-payments</code><p>Routers: <code>app/api/v1/customer_receipts.py</code>, <code>supplier_payments.py</code> — both thin wrappers over the same service.</p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>PaymentService.create_payment()</code><p><code>app/services/payments/payment_service.py</code> — one service backs BOTH directions (<code>party_type</code> distinguishes them).</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">payment</span><span class="table-tag">payment_allocation</span><p>Status DRAFT. <code>sales_invoice.paid_amount</code>/<code>purchase_invoice.paid_amount</code> reconciliation caches are NOT touched yet.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><p class="none">None while DRAFT</p></div>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> Owner/Manager posts the payment — Salesperson can create/edit a Customer Receipt but never post or reverse one (zero Supplier Payment access at all)</div>
+    </div>
+
+    <!-- Stage 2: Post -->
+    <div class="chain-stage">
+      <div class="stage-card open">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">2</span> Post</div>
+          <div class="stage-sub">Row-locks every touched invoice (sorted, deadlock-safe) and re-validates live outstanding under that lock</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>ReceiptDetailModal</code> / payment detail<p>"Post Receipt"/"Post Payment" confirm dialog.</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /customer-receipts/{payment_id}/post</code><code>POST /supplier-payments/{payment_id}/post</code></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>PaymentService.post_payment()</code><p>Locks every DISTINCT invoice the allocation touches, sorted by id (PROMPT-022's own deadlock-avoidance pattern, reused verbatim).</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">payment</span><span class="table-tag">sales_invoice</span><span class="table-tag">purchase_invoice</span><p>Status → POSTED. <code>paid_amount</code>/<code>payment_status</code> recalculated on each touched invoice from <code>SUM(payment_allocation.allocated_amount)</code> across currently-POSTED payments only.</p></div>
+          <div class="lane lane-side">
+            <div class="lane-label"><span class="dot"></span>Side-Effects</div>
+            <span class="side-tag">Accounting</span>
+            <p><code>AccountingPostingService.post_payment()</code> — Customer Receipt: DR Cash/Bank/UPI/Cheque (by <code>payment_method</code>) / CR Accounts Receivable. Supplier Payment: mirror image (DR Accounts Payable / CR Cash-Bank-side account).</p>
+            <p class="none">No Stock Ledger, no GST — ever.</p>
+          </div>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> Two ways back to pre-posted state, both reuse the SAME mechanism</div>
+    </div>
+
+    <!-- Stage 3: Reverse / Bounce -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">3</span> Reverse (manual) / Cheque Bounce (automatic)</div>
+          <div class="stage-sub">A status flip on the SAME row — never a new compensating record, never an edit</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>"Reverse"</code> button, or <code>"Mark Bounced"</code> on a CHEQUE payment</div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /customer-receipts/{id}/reverse</code><code>POST .../cheque-status</code> (+ supplier-payments equivalents)</div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>PaymentService.reverse_payment()</code><code>mark_cheque_status()</code><p>A BOUNCED transition internally calls <code>reverse_payment()</code> — no separate exclusion path exists.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">payment</span><p>Status → REVERSED. <code>payment_allocation</code> rows are NEVER deleted — the recalculation simply stops counting a non-POSTED payment's allocations, restoring outstanding on every invoice it touched.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><span class="side-tag">Accounting</span><p><code>AccountingPostingService.reverse_payment()</code> → <code>JournalService.reverse_journal_for_source()</code> — a brand-new journal with debit/credit swapped; the original journal is never edited.</p></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="flow-footer">Verified directly against backend source — app/services/payments/payment_service.py, app/api/v1/customer_receipts.py, supplier_payments.py.</footer>
+
+  <script src="assets/flow.js"></script>
+</body>
+</html>

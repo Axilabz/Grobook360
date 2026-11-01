@@ -21,6 +21,16 @@ class Tenant(UUIDPKMixin, Base, RowVersionMixin):
 
     __tablename__ = "tenant"
 
+    # System-generated, platform-wide, never reuses a number — see
+    # migration 0036's docstring. Display-only; the UUID `id` remains the
+    # real foreign-key/tenant-isolation identifier everywhere.
+    # The random `default=` below is only a fallback for the many existing
+    # test fixtures that construct `Tenant(business_name=...)` directly
+    # without a code; the real sign-up flow (SignUpService) always passes
+    # an explicit clean sequential "TEN-0001"-style code, overriding this.
+    tenant_code: Mapped[str] = mapped_column(
+        String(20), nullable=False, unique=True, default=lambda: f"TEN-{uuid.uuid4().hex[:8].upper()}"
+    )
     business_name: Mapped[str] = mapped_column(String(200), nullable=False)
     gstin: Mapped[str | None] = mapped_column(CHAR(15), nullable=True)
     state_code: Mapped[str | None] = mapped_column(CHAR(2), nullable=True)
@@ -35,6 +45,22 @@ class Tenant(UUIDPKMixin, Base, RowVersionMixin):
     address_line1: Mapped[str | None] = mapped_column(String(255), nullable=True)
     city: Mapped[str | None] = mapped_column(String(100), nullable=True)
     pin_code: Mapped[str | None] = mapped_column(CHAR(6), nullable=True)
+
+    # Company Profile fields (migration 0033 — see that migration's own
+    # docstring for the "propose, document, implement" rationale). All
+    # nullable: no sign-up flow captures any of these today.
+    pan: Mapped[str | None] = mapped_column(CHAR(10), nullable=True)
+    business_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    phone: Mapped[str | None] = mapped_column(CHAR(10), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    website: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    bank_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    bank_account_number: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    bank_account_holder_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    bank_ifsc: Mapped[str | None] = mapped_column(CHAR(11), nullable=True)
+    bank_branch_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    bank_account_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    bank_upi_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     created_by: Mapped[uuid.UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
     created_at: Mapped[object] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)

@@ -8,6 +8,7 @@ import Input from './Input';
 import Select from './Select';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { useNavigation } from '../context/NavigationContext';
 import MobileFilterToggle from '../shared/MobileFilterToggle';
 import ExportButton from '../shared/ExportButton';
 import MobileAccordionCard from '../shared/MobileAccordionCard';
@@ -31,6 +32,7 @@ const STATUS_BADGE: Record<string, string> = {
 const SupplierManagement: React.FC = () => {
   const { hasPermission } = useAuth();
   const { showToast } = useToast();
+  const { consumeParams } = useNavigation();
   // Backend independently re-checks every call regardless of what this UI
   // shows (PROMPT-006 S27 pattern, carried into PROMPT-007/008).
   const canCreate = hasPermission('suppliers.create');
@@ -87,6 +89,14 @@ const SupplierManagement: React.FC = () => {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+
+  // Arrived here from the header search (a specific vendor picked from its
+  // results) — open that vendor's Party 360 profile directly.
+  useEffect(() => {
+    const params = consumeParams('Suppliers');
+    if (params?.id) setProfileSupplierId(params.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleConfirmStatusChange = async () => {
     if (!confirmAction) return;

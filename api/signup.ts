@@ -2,6 +2,7 @@ import { apiRequest } from './client';
 
 export interface SignUpOrganization {
   business_name: string;
+  business_type: string | null;
   address_line1: string;
   city: string;
   state_code: string;
@@ -10,6 +11,7 @@ export interface SignUpOrganization {
 }
 
 export interface SignUpOwner {
+  name: string;
   phone: string;
   email: string;
   password: string;

@@ -31,6 +31,7 @@ def _valid_payload(**overrides) -> dict:
             "gstin": None,
         },
         "owner": {
+            "name": "Test Owner",
             "phone": _unique_phone(),
             "email": "owner@example.com",
             "password": "SecurePass123",

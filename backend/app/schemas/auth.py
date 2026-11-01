@@ -30,6 +30,7 @@ class UserSummary(BaseModel):
 
 class TenantSummary(BaseModel):
     id: str
+    tenant_code: str
     business_name: str
 
 
@@ -42,5 +43,11 @@ class LoginResponseData(BaseModel):
 class MeResponseData(BaseModel):
     user_id: str
     tenant_id: str | None
+    # Added so a page refresh (which calls /auth/me, not /auth/login) can
+    # still show the real tenant name in the header — previously only the
+    # login response carried it, so the header fell back to a hardcoded
+    # "Agin Crop" placeholder on every refresh regardless of who was
+    # actually logged in.
+    tenant: TenantSummary | None
     role: str | None
     permissions: list[str]

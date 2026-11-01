@@ -34,7 +34,7 @@ def _signup_request(phone: str) -> SignUpRequest:
             gstin=None,
         ),
         owner=OwnerAccountDetails(
-            phone=phone, email="owner@example.com", password="SecurePass123", confirm_password="SecurePass123"
+            name="Test Owner", phone=phone, email="owner@example.com", password="SecurePass123", confirm_password="SecurePass123"
         ),
     )
 

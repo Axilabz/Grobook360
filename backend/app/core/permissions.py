@@ -441,9 +441,21 @@ ROLE_DEFAULT_PERMISSIONS: dict[str, frozenset[str]] = {
             CONFIGURATION_VIEW, CONFIGURATION_MANAGE,
         }
     ),
+    # RBAC Alignment Phase (new target Role/Module access matrix): Manager
+    # loses ACCOUNTING_REVERSE_JOURNAL/ACCOUNTING_MANAGE_ACCOUNT_MAPPINGS
+    # (the two highest-risk financial-control actions — "Accounting &
+    # Ledgers: Limited" for Manager), GST_EXPORT ("GST & Compliance:
+    # Limited"), and ROLES_VIEW/PERMISSIONS_VIEW ("Role & Permission
+    # Configuration: No Access" for Manager — Owner only). Manager keeps
+    # view/prepare access to Accounting/GST, and keeps its existing
+    # Reports/Analysis/User-Management(view-only)/Configuration(view-only)
+    # scope unchanged — those already matched the new matrix's "Limited"/
+    # "Permitted" cells. See the RBAC Alignment plan for the full matrix
+    # comparison and the explicitly-deferred items (true per-tenant
+    # configurable permissions, Purchase Quotation, data scope).
     "MANAGER": frozenset(
         {
-            USERS_VIEW, ROLES_VIEW, PERMISSIONS_VIEW,
+            USERS_VIEW,
             CUSTOMERS_VIEW, CUSTOMERS_CREATE, CUSTOMERS_UPDATE, CUSTOMERS_ACTIVATE, CUSTOMERS_DEACTIVATE, CUSTOMERS_EXPORT,
             SUPPLIERS_VIEW, SUPPLIERS_CREATE, SUPPLIERS_UPDATE, SUPPLIERS_ACTIVATE, SUPPLIERS_DEACTIVATE, SUPPLIERS_EXPORT,
             PRODUCTS_VIEW, PRODUCTS_CREATE, PRODUCTS_UPDATE, PRODUCTS_ACTIVATE, PRODUCTS_DEACTIVATE, PRODUCTS_EXPORT,
@@ -467,8 +479,8 @@ ROLE_DEFAULT_PERMISSIONS: dict[str, frozenset[str]] = {
             PURCHASE_RETURN_VIEW, PURCHASE_RETURN_CREATE, PURCHASE_RETURN_EDIT, PURCHASE_RETURN_CONFIRM, PURCHASE_RETURN_CANCEL,
             CUSTOMER_RECEIPT_VIEW, CUSTOMER_RECEIPT_CREATE, CUSTOMER_RECEIPT_EDIT, CUSTOMER_RECEIPT_POST, CUSTOMER_RECEIPT_REVERSE, CUSTOMER_RECEIPT_EXPORT,
             SUPPLIER_PAYMENT_VIEW, SUPPLIER_PAYMENT_CREATE, SUPPLIER_PAYMENT_EDIT, SUPPLIER_PAYMENT_POST, SUPPLIER_PAYMENT_REVERSE, SUPPLIER_PAYMENT_EXPORT,
-            ACCOUNTING_VIEW_JOURNALS, ACCOUNTING_VIEW_CHART_OF_ACCOUNTS, ACCOUNTING_MANAGE_ACCOUNT_MAPPINGS, ACCOUNTING_REVERSE_JOURNAL,
-            GST_VIEW, GST_PREPARE_RETURNS, GST_EXPORT,
+            ACCOUNTING_VIEW_JOURNALS, ACCOUNTING_VIEW_CHART_OF_ACCOUNTS,
+            GST_VIEW, GST_PREPARE_RETURNS,
             REPORTS_VIEW_DASHBOARD, REPORTS_VIEW_SALES, REPORTS_VIEW_PURCHASE, REPORTS_VIEW_INVENTORY,
             REPORTS_VIEW_RECEIVABLES, REPORTS_VIEW_PAYABLES, REPORTS_VIEW_PAYMENTS, REPORTS_VIEW_GENERAL_LEDGER,
             REPORTS_VIEW_TRIAL_BALANCE, REPORTS_VIEW_PROFIT_LOSS, REPORTS_VIEW_BALANCE_SHEET, REPORTS_VIEW_GST,
@@ -480,10 +492,15 @@ ROLE_DEFAULT_PERMISSIONS: dict[str, frozenset[str]] = {
             CONFIGURATION_VIEW,
         }
     ),
-    # FR-CUST-07 / FR-SUPP-05 (both Confirmed): Salesperson may create/edit
-    # customers and suppliers but not deactivate/reactivate either. Table 7
-    # independently confirms "Limited" (not "No") access to both for
-    # Salesperson.
+    # RBAC Alignment Phase (new target Role/Module access matrix):
+    # Supplier Management is now "No Access" for Salesperson — a
+    # deliberate tightening from the prior FR-SUPP-05-derived "Limited"
+    # resolution below (kept here for historical context). SUPPLIERS_VIEW/
+    # CREATE/UPDATE removed from this role's set entirely.
+    #
+    # FR-CUST-07 (Confirmed): Salesperson may create/edit customers but
+    # not deactivate/reactivate. Table 7 independently confirms "Limited"
+    # (not "No") access for Salesperson on Customers — unchanged.
     #
     # FR-PROD-04 (Confirmed) is stricter for Products: "Owner and Manager
     # may create/edit/deactivate; Salesperson has read-only visibility."
@@ -549,7 +566,6 @@ ROLE_DEFAULT_PERMISSIONS: dict[str, frozenset[str]] = {
     "SALESPERSON": frozenset(
         {
             CUSTOMERS_VIEW, CUSTOMERS_CREATE, CUSTOMERS_UPDATE,
-            SUPPLIERS_VIEW, SUPPLIERS_CREATE, SUPPLIERS_UPDATE,
             PRODUCTS_VIEW,
             INVENTORY_VIEW,
             SALES_ESTIMATE_VIEW, SALES_ESTIMATE_CREATE, SALES_ESTIMATE_EDIT, SALES_ESTIMATE_SEND,

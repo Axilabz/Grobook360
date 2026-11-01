@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Purchase Chain — Data Flow</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>📦 Purchase Chain — Data Flow</h1>
+    <nav class="chain-nav">
+      <a href="index.html">Index</a>
+      <a href="sales-chain.html">Sales</a>
+      <a href="purchase-chain.html" class="active">Purchase</a>
+      <a href="payments-chain.html">Payments</a>
+      <a href="inventory-chain.html">Inventory</a>
+      <a href="payroll-chain.html">Payroll</a>
+      <a href="accounting-gst-engine.html">Accounting/GST</a>
+      <a href="reports-analysis-chain.html">Reports</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <div class="intro-card">
+      Purchase Order → Goods Receipt → Purchase Invoice → Purchase Return. The mirror image of the Sales chain, with
+      one structural difference: Purchase Invoice has <strong>3</strong> entry paths (Direct, from-Goods-Receipt,
+      from-Purchase-Order-consolidated), and GST tracking here is <em>Input</em> GST/ITC, not Output.
+      <button id="expand-all" style="margin-left:12px;background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Expand all</button>
+      <button id="collapse-all" style="background:#1e293b;border:1px solid #334467;color:#cbd5e1;padding:5px 12px;border-radius:7px;font-size:12px;cursor:pointer;">Collapse all</button>
+    </div>
+
+    <!-- Stage 1: Purchase Order -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">1</span> Purchase Order — Confirm</div>
+          <div class="stage-sub">Never touches inventory — Owner/Manager only (Salesperson has ZERO Purchase access)</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>PurchaseOrderManagement.tsx</code><p>"Confirm" on a DRAFT PO.</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /purchase/orders/{order_id}/confirm</code><p>Router: <code>app/api/v1/purchase_orders.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>PurchaseOrderService.confirm_order()</code><p><code>app/services/purchase/purchase_order_service.py</code></p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">purchase_order</span><span class="table-tag">purchase_order_line</span></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div><p class="none">None — by design</p></div>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> A CONFIRMED PO can now have a Goods Receipt created against it</div>
+    </div>
+
+    <!-- Stage 2: Goods Receipt -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">2</span> Goods Receipt — Confirm</div>
+          <div class="stage-sub">The FIRST stage in this chain that moves stock</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>GoodsReceiptManagement.tsx</code><p>"Confirm" on a DRAFT receipt.</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /purchase/goods-receipts/{receipt_id}/confirm</code><p>Router: <code>app/api/v1/goods_receipts.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>GoodsReceiptService.confirm_receipt()</code><p><code>app/services/purchase/goods_receipt_service.py</code> ~L402-430</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">goods_receipt</span><span class="table-tag">goods_receipt_line</span><span class="table-tag">purchase_order_line</span><p><code>purchase_order_line.received_quantity</code> incremented; PO status → PARTIALLY_RECEIVED/FULLY_RECEIVED.</p></div>
+          <div class="lane lane-side"><div class="lane-label"><span class="dot"></span>Side-Effects</div>
+            <span class="side-tag">Stock Ledger</span>
+            <p><code>InventoryService.post_movement(STOCK_IN, source_type=GOODS_RECEIPT)</code> per line. No Accounting/GST call here — confirmed, no import of either service in this file.</p>
+          </div>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> Can be cancelled even after confirming — a compensating <code>GOODS_RECEIPT_REVERSAL</code> Stock-Out reverses it (blocked if already invoiced, or if the stock was already consumed elsewhere)</div>
+    </div>
+
+    <!-- Stage 3: Purchase Invoice -->
+    <div class="chain-stage">
+      <div class="stage-card open">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">3</span> Purchase Invoice — Post</div>
+          <div class="stage-sub">3 entry paths — only ONE of them moves stock</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>PurchaseInvoiceManagement.tsx</code><p>"New Invoice" (Direct), or a PO-picker / GR-picker create flow, then "Post".</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /purchase/invoices</code> (create)<code>POST /purchase/invoices/{invoice_id}/post</code><p>Router: <code>app/api/v1/purchase_invoices.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>PurchaseInvoiceService.post_invoice()</code><p><code>app/services/purchase/purchase_invoice_service.py</code> ~L706-819 — branches on <code>invoice_type</code>.</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">purchase_invoice</span><span class="table-tag">purchase_invoice_line</span><span class="table-tag">goods_receipt_line</span><p>GR/PO-sourced invoices increment <code>goods_receipt_line.invoiced_quantity</code> instead of moving stock.</p></div>
+          <div class="lane lane-side">
+            <div class="lane-label"><span class="dot"></span>Side-Effects, by invoice_type</div>
+            <ul>
+              <li><strong>DIRECT_PURCHASE_INVOICE:</strong> <span class="side-tag">Stock Ledger</span> <code>post_movement(STOCK_IN, source_type=PURCHASE_INVOICE)</code> per line.</li>
+              <li><strong>GOODS_RECEIPT_ / PURCHASE_ORDER_PURCHASE_INVOICE:</strong> no stock call — the GR already moved it.</li>
+            </ul>
+            <p>All 3 branches then run:</p>
+            <ol style="margin:4px 0;padding-left:16px;font-size:12.5px;color:#aab6d6;line-height:1.6;">
+              <li><span class="side-tag">Accounting</span> <code>AccountingPostingService.post_purchase_invoice()</code> — DR Purchase Expense + Input CGST/SGST/IGST / CR Accounts Payable.</li>
+              <li><span class="side-tag">GST</span> <code>GstReportingService.record_purchase_invoice_transaction()</code> (at <code>purchase_invoice_service.py:805</code>) — Input GST/ITC, positive sign. Same <code>GstReportingService</code> class the Sales chain uses (<code>app/services/sales/gst_reporting_service.py</code>), not a separate GST module.</li>
+              <li><span class="side-tag">Audit</span> <code>AuditService.record("PURCHASE_INVOICE_POSTED")</code></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div class="stage-connector"><span class="arrow">↓</span> Cancelling a POSTED invoice reverses it: Direct invoices post a compensating <code>PURCHASE_INVOICE_REVERSAL</code> Stock-Out; GR/PO-sourced ones only release their <code>invoiced_quantity</code> claim, never touching stock</div>
+    </div>
+
+    <!-- Stage 4: Purchase Return -->
+    <div class="chain-stage">
+      <div class="stage-card">
+        <div class="stage-head">
+          <div class="stage-title"><span class="badge mutating">4</span> Purchase Return — Confirm</div>
+          <div class="stage-sub">Requires a source POSTED Purchase Invoice — no ad-hoc path</div>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+        <div class="swimlanes">
+          <div class="lane lane-frontend"><div class="lane-label"><span class="dot"></span>Frontend</div><code>PurchaseReturnManagement.tsx</code><p>"Confirm" — goods physically leaving back to the supplier.</p></div>
+          <div class="lane lane-api"><div class="lane-label"><span class="dot"></span>API Endpoint</div><code>POST /purchase/returns/{return_id}/confirm</code><p>Router: <code>app/api/v1/purchase_returns.py</code></p></div>
+          <div class="lane lane-service"><div class="lane-label"><span class="dot"></span>Service Method</div><code>PurchaseReturnService.confirm_return()</code><p><code>app/services/purchase/purchase_return_service.py</code> ~L392-465</p></div>
+          <div class="lane lane-db"><div class="lane-label"><span class="dot"></span>Database</div><span class="table-tag">purchase_return</span><span class="table-tag">purchase_return_line</span><span class="table-tag">purchase_invoice_line</span><p><code>purchase_invoice_line.returned_quantity</code> incremented.</p></div>
+          <div class="lane lane-side">
+            <div class="lane-label"><span class="dot"></span>Side-Effects (in order)</div>
+            <ol style="margin:4px 0;padding-left:16px;font-size:12.5px;color:#aab6d6;line-height:1.6;">
+              <li><span class="side-tag">Stock Ledger</span> <code>post_movement(STOCK_OUT, source_type=PURCHASE_RETURN)</code> per line.</li>
+              <li><span class="side-tag">Accounting</span> <code>AccountingPostingService.post_purchase_return()</code> — DR Accounts Payable / CR Purchase Return Adjustment + Input GST reversal.</li>
+              <li><span class="side-tag">GST</span> <code>GstReportingService.record_purchase_return_transaction()</code> — <strong>negative</strong> sign, ITC reversal.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="flow-footer">Verified directly against backend source — app/services/purchase/*.py, app/api/v1/*.py.</footer>
+
+  <script src="assets/flow.js"></script>
+</body>
+</html>

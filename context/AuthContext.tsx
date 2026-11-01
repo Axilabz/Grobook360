@@ -77,7 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (cancelled) return;
         setIsAuthenticated(true);
         setCurrentUser({ id: me.user_id });
-        setCurrentTenant(me.tenant_id ? { id: me.tenant_id, business_name: '' } : null);
+        setCurrentTenant(me.tenant);
         setRole(me.role);
         setPermissions(me.permissions);
       } catch {

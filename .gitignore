@@ -29,3 +29,6 @@ backend/.pytest_cache
 *.njsproj
 *.sln
 *.sw?
+
+# Database exports (large, contain data)
+Db/

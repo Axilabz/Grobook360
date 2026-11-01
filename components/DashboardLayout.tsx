@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
   currentView: string;
-  onNavigate: (view: string) => void;
+  onNavigate: (view: string, params?: Record<string, string>) => void;
   onLogout: () => void;
 }
 
@@ -17,6 +17,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, currentView
   const toggleSidebar = () => {
       setIsSidebarCollapsed(!isSidebarCollapsed);
   }
+
+  // Mobile drawer: Escape closes it, and page scroll is locked while open.
+  useEffect(() => {
+    if (isSidebarCollapsed) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsSidebarCollapsed(true);
+    };
+    const isMobile = window.innerWidth < 768;
+    const prevOverflow = document.body.style.overflow;
+    if (isMobile) document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isSidebarCollapsed]);
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 font-['Figtree'] transition-colors">

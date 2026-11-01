@@ -230,6 +230,19 @@ export async function listCheques(params: ReportParams = {}): Promise<ApiList<Ch
   return apiRequestList<ChequeReportRow>(`/reports/payments/cheques${buildQuery(params)}`);
 }
 
+export interface DailyCollectionEntry {
+  payment_id: string; payment_number: string; customer_name: string | null;
+  payment_method: string; amount: string; collected_by_name: string | null;
+}
+
+export interface DailyCollectionDay {
+  date: string; total_amount: string; entry_count: number; entries: DailyCollectionEntry[];
+}
+
+export async function getDailyCollectionReport(params: ReportParams = {}): Promise<DailyCollectionDay[]> {
+  return apiRequest<DailyCollectionDay[]>(`/reports/payments/daily-collection${buildQuery(params)}`);
+}
+
 // --- Accounting --------------------------------------------------------------
 
 export interface GeneralLedgerEntry {
