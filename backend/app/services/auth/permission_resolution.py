@@ -52,14 +52,15 @@ async def resolve_permissions_by_role_name(
     if tenant_id is None or role_name is None:
         return frozenset()
 
-    role_result = await session.execute(
-        select(Role.id).where(Role.tenant_id == tenant_id, Role.name == role_name)
+    # ONE round trip (role + permissions joined) — this runs on every request,
+    # and each extra query costs a full network RTT to the hosted database.
+    perm_result = await session.execute(
+        select(Permission.code)
+        .join(RolePermission, RolePermission.permission_id == Permission.id)
+        .join(Role, Role.id == RolePermission.role_id)
+        .where(Role.tenant_id == tenant_id, Role.name == role_name)
     )
-    role_id = role_result.scalar_one_or_none()
-    if role_id is None:
-        return frozenset()
-
-    return frozenset(await _permissions_for_role_id(session, role_id))
+    return frozenset(row[0] for row in perm_result.all())
 
 
 async def _permissions_for_role_id(session: AsyncSession, role_id: uuid.UUID) -> list[str]:

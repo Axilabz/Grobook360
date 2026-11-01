@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import create_access_token
+from app.core import auth_cache
 from app.db.base import utcnow
 from app.models.auth_session import AuthSession
 
@@ -62,9 +63,15 @@ class SessionService:
         if record is None or record.revoked_at is not None:
             return False
         record.revoked_at = utcnow()
+        auth_cache.invalidate_all()
         await self._session.flush()
         return True
 
     async def touch(self, record: AuthSession) -> None:
+        # Throttled: an UPDATE per request is a wasted DB round trip; activity
+        # is only informational (never read for expiry), so 60s resolution is plenty.
+        last = record.last_activity_at
+        if last is not None and (utcnow() - last).total_seconds() < 60:
+            return
         record.last_activity_at = utcnow()
         await self._session.flush()

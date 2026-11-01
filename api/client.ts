@@ -7,9 +7,8 @@
 // that, and only when the operation is idempotent (Idempotency-Key supplied).
 
 import type { ApiErrorBody, ApiErrorEnvelope, ApiList, ApiSuccess } from './envelopes';
+import { API_BASE_URL } from './baseUrl';
 
-const API_BASE_URL: string =
-  (import.meta as any).env?.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
 
 export class ApiError extends Error {
   readonly code: string;
@@ -117,14 +116,30 @@ async function rawRequest(path: string, options: RequestOptions): Promise<{ payl
   return { payload, correlationId: responseCorrelationId, status: response.status };
 }
 
+// Identical GETs issued while one is already in flight (several widgets asking
+// for /me, permissions, units… on the same screen) share ONE network call.
+// Only in-flight requests are shared — nothing is cached once it settles, so
+// data is never stale after a mutation.
+const inflightGets = new Map<string, ReturnType<typeof rawRequest>>();
+
+function dedupedRequest(path: string, options: RequestOptions): ReturnType<typeof rawRequest> {
+  if ((options.method ?? 'GET') !== 'GET' || options.signal) return rawRequest(path, options);
+  const key = `${authToken ?? ''}|${path}`;
+  const existing = inflightGets.get(key);
+  if (existing) return existing;
+  const promise = rawRequest(path, options).finally(() => inflightGets.delete(key));
+  inflightGets.set(key, promise);
+  return promise;
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { payload } = await rawRequest(path, options);
+  const { payload } = await dedupedRequest(path, options);
   return (payload as ApiSuccess<T>)?.data as T;
 }
 
 /** For list endpoints: returns data + pagination rather than discarding pagination. */
 export async function apiRequestList<T>(path: string, options: RequestOptions = {}): Promise<ApiList<T>> {
-  const { payload } = await rawRequest(path, options);
+  const { payload } = await dedupedRequest(path, options);
   return payload as ApiList<T>;
 }
 

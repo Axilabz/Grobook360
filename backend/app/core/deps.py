@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from fastapi import Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import auth_cache
 from app.core.config import get_settings
 from app.core.error_codes import AUTH_SESSION_INVALID, AUTH_UNAUTHENTICATED
 from app.core.exceptions import AuthenticationError, AuthorizationError
@@ -65,16 +66,21 @@ async def get_current_user(
     if jti is None:
         raise AuthenticationError("Invalid session token", code=AUTH_SESSION_INVALID)
 
-    session_service = SessionService(session)
-    active = await session_service.get_active(jti)
-    if active is None:
-        raise AuthenticationError("Session has been signed out or expired", code=AUTH_SESSION_INVALID)
-
-    await session_service.touch(active)
-
     tenant_id = uuid.UUID(claims["tenant_id"]) if claims.get("tenant_id") else None
     role = claims.get("role")
-    permissions = await resolve_permissions_by_role_name(session, tenant_id=tenant_id, role_name=role)
+    ttl = get_settings().auth_cache_ttl_seconds
+
+    permissions = auth_cache.get(jti, ttl)
+    if permissions is None:
+        session_service = SessionService(session)
+        active = await session_service.get_active(jti)
+        if active is None:
+            raise AuthenticationError("Session has been signed out or expired", code=AUTH_SESSION_INVALID)
+
+        await session_service.touch(active)
+
+        permissions = await resolve_permissions_by_role_name(session, tenant_id=tenant_id, role_name=role)
+        auth_cache.put(jti, permissions, ttl)
     context = AuthenticatedContext(
         user_id=uuid.UUID(claims["sub"]),
         tenant_id=tenant_id,

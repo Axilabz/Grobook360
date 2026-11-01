@@ -26,7 +26,9 @@ else:
         echo=settings.database_echo,
         pool_size=settings.database_pool_size,
         max_overflow=settings.database_max_overflow,
-        pool_pre_ping=True,
+        # No pre_ping: it costs one extra network round trip per checkout.
+        # pool_recycle retires connections before the pooler can drop them.
+        pool_recycle=240,
         connect_args=_connect_args,
     )
 

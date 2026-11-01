@@ -43,6 +43,8 @@ from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.services.reports.parallel import run_lanes
 from sqlalchemy.orm import aliased
 
 from app.models.customer import Customer
@@ -158,24 +160,47 @@ class AnalysisService:
     # --- Overview -----------------------------------------------------------
 
     async def get_overview(self, *, tenant_id: uuid.UUID, date_from: date, date_to: date, compare_from: date | None, compare_to: date | None) -> dict:
-        sales_now = await self._sales.get_sales_summary(tenant_id=tenant_id, date_from=date_from, date_to=date_to)
-        purchase_now = await self._purchase.get_purchase_summary(tenant_id=tenant_id, date_from=date_from, date_to=date_to)
-        sales_prev = purchase_prev = None
-        if compare_from and compare_to:
-            sales_prev = await self._sales.get_sales_summary(tenant_id=tenant_id, date_from=compare_from, date_to=compare_to)
-            purchase_prev = await self._purchase.get_purchase_summary(tenant_id=tenant_id, date_from=compare_from, date_to=compare_to)
+        # Independent read-only lanes (see reports/parallel.py); sequential when disabled.
+        async def lane_summaries(sess: AsyncSession):
+            svc = AnalysisService(sess)
+            sn = await svc._sales.get_sales_summary(tenant_id=tenant_id, date_from=date_from, date_to=date_to)
+            pn = await svc._purchase.get_purchase_summary(tenant_id=tenant_id, date_from=date_from, date_to=date_to)
+            sp = pp = None
+            if compare_from and compare_to:
+                sp = await svc._sales.get_sales_summary(tenant_id=tenant_id, date_from=compare_from, date_to=compare_to)
+                pp = await svc._purchase.get_purchase_summary(tenant_id=tenant_id, date_from=compare_from, date_to=compare_to)
+            return sn, pn, sp, pp
+
+        async def lane_parties(sess: AsyncSession):
+            svc = AnalysisService(sess)
+            _, _, rec = await svc._receivables.get_receivables(tenant_id=tenant_id, page=1, page_size=1, customer_id=None)
+            _, _, pay = await svc._receivables.get_payables(tenant_id=tenant_id, page=1, page_size=1, supplier_id=None)
+            aging_ = await svc._receivables_aging(tenant_id=tenant_id)
+            return rec, pay, aging_
+
+        async def lane_top(sess: AsyncSession):
+            svc = AnalysisService(sess)
+            tp, _ = await svc._sales.get_product_wise_sales(tenant_id=tenant_id, date_from=date_from, date_to=date_to, page=1, page_size=5)
+            tc, _ = await svc._sales.get_customer_wise_sales(tenant_id=tenant_id, date_from=date_from, date_to=date_to, page=1, page_size=5)
+            return tp, tc
+
+        async def lane_trends(sess: AsyncSession):
+            svc = AnalysisService(sess)
+            st = await svc._sales_trend(tenant_id=tenant_id, date_from=date_from, date_to=date_to)
+            pt = await svc._purchase_trend(tenant_id=tenant_id, date_from=date_from, date_to=date_to)
+            return st, pt
+
+        (
+            (sales_now, purchase_now, sales_prev, purchase_prev),
+            (receivables_summary, payables_summary, aging),
+            (top_products, top_customers),
+            (sales_trend, purchase_trend),
+        ) = await run_lanes(self._session, tenant_id, [lane_summaries, lane_parties, lane_top, lane_trends])
 
         avg_invoice_now = (sales_now["invoice_total"] / sales_now["invoice_count"]) if sales_now["invoice_count"] else _ZERO
         avg_invoice_prev = None
         if sales_prev is not None:
             avg_invoice_prev = (sales_prev["invoice_total"] / sales_prev["invoice_count"]) if sales_prev["invoice_count"] else _ZERO
-
-        _, _, receivables_summary = await self._receivables.get_receivables(tenant_id=tenant_id, page=1, page_size=1, customer_id=None)
-        _, _, payables_summary = await self._receivables.get_payables(tenant_id=tenant_id, page=1, page_size=1, supplier_id=None)
-
-        top_products, _ = await self._sales.get_product_wise_sales(tenant_id=tenant_id, date_from=date_from, date_to=date_to, page=1, page_size=5)
-        top_customers, _ = await self._sales.get_customer_wise_sales(tenant_id=tenant_id, date_from=date_from, date_to=date_to, page=1, page_size=5)
-        aging = await self._receivables_aging(tenant_id=tenant_id)
 
         return {
             "kpis": {
@@ -187,8 +212,8 @@ class AnalysisService:
                 "supplier_payables": {"current": payables_summary["total_payables"], "previous": None, "change": None, "change_percent": None},
                 "inventory_value": _UNAVAILABLE_INVENTORY_VALUE,
             },
-            "sales_trend": await self._sales_trend(tenant_id=tenant_id, date_from=date_from, date_to=date_to),
-            "purchase_trend": await self._purchase_trend(tenant_id=tenant_id, date_from=date_from, date_to=date_to),
+            "sales_trend": sales_trend,
+            "purchase_trend": purchase_trend,
             "top_products": top_products,
             "top_customers": top_customers,
             "receivables_aging": aging,

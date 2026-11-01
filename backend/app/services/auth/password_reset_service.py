@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import auth_cache
 from app.core.config import get_settings
 from app.core.error_codes import (
     RESET_INVALID_TOKEN,
@@ -168,6 +169,7 @@ class PasswordResetService:
         )
         for session_row in active_sessions.scalars().all():
             session_row.revoked_at = utcnow()
+            auth_cache.invalidate_all()
 
         if user.tenant_id is not None:
             await AuditService(self._session).record(

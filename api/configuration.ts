@@ -1,4 +1,5 @@
 import { apiRequest } from './client';
+import { API_BASE_URL } from './baseUrl';
 
 export type InvoiceTemplateId = 'CLASSIC' | 'MODERN' | 'COMPACT';
 
@@ -43,7 +44,6 @@ export async function updateInvoiceTemplateConfig(payload: InvoiceTemplateConfig
   return apiRequest<InvoiceTemplateConfig>('/configuration/invoice-template-config', { method: 'PUT', body: payload });
 }
 
-const API_BASE_URL: string = (import.meta as any).env?.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
 
 async function uploadFile(path: string, method: 'POST' | 'DELETE', file?: File): Promise<InvoiceTemplateConfig> {
   const correlationId = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}`;

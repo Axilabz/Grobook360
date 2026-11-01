@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Search, Plus, Pencil, UserCheck, UserX, ChevronLeft, ChevronRight, X, Loader2,
   AlertTriangle, Building2, User, MapPin, FileText, Eye, LayoutDashboard,
@@ -81,7 +81,14 @@ const SupplierManagement: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, statusFilter, gstFilter]);
 
+  // Skip the first run: the page/status effect already loads the initial list,
+  // so debouncing on mount would fire a duplicate request.
+  const searchMountedRef = useRef(false);
   useEffect(() => {
+    if (!searchMountedRef.current) {
+      searchMountedRef.current = true;
+      return;
+    }
     const timer = setTimeout(() => {
       setPage(1);
       fetchSuppliers();

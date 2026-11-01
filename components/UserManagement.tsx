@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Search, Plus, Pencil, UserCheck, UserX, ChevronLeft, ChevronRight, X, Loader2, AlertTriangle } from 'lucide-react';
 import Input from './Input';
 import Select from './Select';
@@ -72,7 +72,14 @@ const UserManagement: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, roleFilter, statusFilter]);
 
+  // Skip the first run: the page/status effect already loads the initial list,
+  // so debouncing on mount would fire a duplicate request.
+  const searchMountedRef = useRef(false);
   useEffect(() => {
+    if (!searchMountedRef.current) {
+      searchMountedRef.current = true;
+      return;
+    }
     const timer = setTimeout(() => {
       setPage(1);
       fetchUsers();

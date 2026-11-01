@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import Layout from './components/Layout';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
@@ -6,31 +6,6 @@ import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import DashboardLayout from './components/DashboardLayout';
 import Home from './components/Home';
-import CustomerManagement from './components/CustomerManagement';
-import SupplierManagement from './components/SupplierManagement';
-import ProductManagement from './components/ProductManagement';
-import InventoryManagement from './components/InventoryManagement';
-import EstimateManagement from './components/EstimateManagement';
-import SalesOrderManagement from './components/SalesOrderManagement';
-import DeliveryChallanManagement from './components/DeliveryChallanManagement';
-import SalesInvoiceManagement from './components/SalesInvoiceManagement';
-import SalesReturnManagement from './components/SalesReturnManagement';
-import CreditDebitNoteManagement from './components/CreditDebitNoteManagement';
-import PurchaseOrderManagement from './components/PurchaseOrderManagement';
-import GoodsReceiptManagement from './components/GoodsReceiptManagement';
-import PurchaseInvoiceManagement from './components/PurchaseInvoiceManagement';
-import PurchaseReturnManagement from './components/PurchaseReturnManagement';
-import CustomerReceiptManagement from './components/CustomerReceiptManagement';
-import SupplierPaymentManagement from './components/SupplierPaymentManagement';
-import AccountingManagement from './components/AccountingManagement';
-import GstManagement from './components/GstManagement';
-import ReportsManagement from './components/ReportsManagement';
-import AnalysisManagement from './components/AnalysisManagement';
-import SyncCenter from './components/SyncCenter';
-import PayrollManagement from './components/PayrollManagement';
-import ViewCompany from './components/ViewCompany';
-import UserManagement from './components/UserManagement';
-import ConfigurationManagement from './components/ConfigurationManagement';
 import { AuthView } from './types';
 import { ToastProvider } from './context/ToastContext';
 import { useTheme } from './context/ThemeContext';
@@ -40,6 +15,33 @@ import ProtectedRoute from './shared/ProtectedRoute';
 import LoadingState from './shared/LoadingState';
 import AccessDenied from './shared/AccessDenied';
 import { isViewAuthorized } from './shared/routePermissions';
+
+// Screens load on demand: the first paint no longer pays for all 25 modules.
+const CustomerManagement = lazy(() => import('./components/CustomerManagement'));
+const SupplierManagement = lazy(() => import('./components/SupplierManagement'));
+const ProductManagement = lazy(() => import('./components/ProductManagement'));
+const InventoryManagement = lazy(() => import('./components/InventoryManagement'));
+const EstimateManagement = lazy(() => import('./components/EstimateManagement'));
+const SalesOrderManagement = lazy(() => import('./components/SalesOrderManagement'));
+const DeliveryChallanManagement = lazy(() => import('./components/DeliveryChallanManagement'));
+const SalesInvoiceManagement = lazy(() => import('./components/SalesInvoiceManagement'));
+const SalesReturnManagement = lazy(() => import('./components/SalesReturnManagement'));
+const CreditDebitNoteManagement = lazy(() => import('./components/CreditDebitNoteManagement'));
+const PurchaseOrderManagement = lazy(() => import('./components/PurchaseOrderManagement'));
+const GoodsReceiptManagement = lazy(() => import('./components/GoodsReceiptManagement'));
+const PurchaseInvoiceManagement = lazy(() => import('./components/PurchaseInvoiceManagement'));
+const PurchaseReturnManagement = lazy(() => import('./components/PurchaseReturnManagement'));
+const CustomerReceiptManagement = lazy(() => import('./components/CustomerReceiptManagement'));
+const SupplierPaymentManagement = lazy(() => import('./components/SupplierPaymentManagement'));
+const AccountingManagement = lazy(() => import('./components/AccountingManagement'));
+const GstManagement = lazy(() => import('./components/GstManagement'));
+const ReportsManagement = lazy(() => import('./components/ReportsManagement'));
+const AnalysisManagement = lazy(() => import('./components/AnalysisManagement'));
+const SyncCenter = lazy(() => import('./components/SyncCenter'));
+const PayrollManagement = lazy(() => import('./components/PayrollManagement'));
+const ViewCompany = lazy(() => import('./components/ViewCompany'));
+const UserManagement = lazy(() => import('./components/UserManagement'));
+const ConfigurationManagement = lazy(() => import('./components/ConfigurationManagement'));
 
 // Helper component to consume NavigationContext and pass navigate to DashboardLayout
 const DashboardWithNavigation: React.FC<{ currentView: string; children: React.ReactNode; onLogout: () => void }> = ({
@@ -137,7 +139,7 @@ const App: React.FC = () => {
             {!isViewAuthorized(dashboardView, hasPermission) ? (
               <AccessDenied onGoHome={() => setDashboardView('Home')} />
             ) : (
-              <>
+              <Suspense fallback={<LoadingState label="Loading…" />}>
             {dashboardView === 'Home' && <Home />}
             {dashboardView === 'Customers' && <CustomerManagement />}
             {dashboardView === 'Suppliers' && <SupplierManagement />}
@@ -171,7 +173,7 @@ const App: React.FC = () => {
                   <p>You navigated to: {dashboardView}</p>
               </div>
             )}
-              </>
+              </Suspense>
             )}
           </DashboardWithNavigation>
         </NavigationProvider>

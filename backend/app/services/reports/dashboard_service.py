@@ -48,6 +48,7 @@ from app.models.supplier import Supplier
 from app.models.customer import Customer
 from app.models.tenant import Tenant
 from app.services.gst.gstr_service import GstrService
+from app.services.reports.parallel import run_lanes
 from app.services.reports.inventory_report_service import LOW_STOCK, OUT_OF_STOCK, InventoryReportService
 from app.services.reports.purchase_report_service import PurchaseReportService
 from app.services.reports.receivables_payables_service import ReceivablesPayablesService
@@ -97,29 +98,58 @@ class DashboardService:
 
     async def get_dashboard(self, *, tenant: Tenant, date_from: date, date_to: date) -> dict:
         tenant_id = tenant.id
-        sales_summary = await SalesReportService(self._session).get_sales_summary(tenant_id=tenant_id, date_from=date_from, date_to=date_to)
-        purchase_summary = await PurchaseReportService(self._session).get_purchase_summary(tenant_id=tenant_id, date_from=date_from, date_to=date_to)
-
-        _, _, receivables_summary = await ReceivablesPayablesService(self._session).get_receivables(tenant_id=tenant_id, page=1, page_size=1, customer_id=None)
-        _, _, payables_summary = await ReceivablesPayablesService(self._session).get_payables(tenant_id=tenant_id, page=1, page_size=1, supplier_id=None)
-
-        _, low_stock_total = await InventoryReportService(self._session).get_current_stock(tenant_id=tenant_id, page=1, page_size=1, status_filter=LOW_STOCK, search=None)
-        _, out_of_stock_total = await InventoryReportService(self._session).get_current_stock(tenant_id=tenant_id, page=1, page_size=1, status_filter=OUT_OF_STOCK, search=None)
-
         return_period = date.today().strftime("%Y-%m")
-        gst_dashboard = await GstrService(self._session).dashboard(tenant_id=tenant_id, return_period=return_period)
 
-        collections = await self._payment_total(tenant_id=tenant_id, party_type=PAYMENT_CUSTOMER, date_from=date_from, date_to=date_to)
-        supplier_payments = await self._payment_total(tenant_id=tenant_id, party_type=PAYMENT_SUPPLIER, date_from=date_from, date_to=date_to)
+        # Four independent read-only lanes (see parallel.py) — each KPI still
+        # calls the SAME report-service method as its detailed report.
+        async def lane_sales(sess: AsyncSession):
+            sales = await SalesReportService(sess).get_sales_summary(tenant_id=tenant_id, date_from=date_from, date_to=date_to)
+            purchase = await PurchaseReportService(sess).get_purchase_summary(tenant_id=tenant_id, date_from=date_from, date_to=date_to)
+            top, _ = await SalesReportService(sess).get_product_wise_sales(
+                tenant_id=tenant_id, date_from=date_from, date_to=date_to, page=1, page_size=_TOP_N,
+            )
+            return sales, purchase, top
 
-        top_products, _ = await SalesReportService(self._session).get_product_wise_sales(
-            tenant_id=tenant_id, date_from=date_from, date_to=date_to, page=1, page_size=_TOP_N,
+        async def lane_parties(sess: AsyncSession):
+            _, _, rec = await ReceivablesPayablesService(sess).get_receivables(tenant_id=tenant_id, page=1, page_size=1, customer_id=None)
+            _, _, pay = await ReceivablesPayablesService(sess).get_payables(tenant_id=tenant_id, page=1, page_size=1, supplier_id=None)
+            return rec, pay
+
+        async def lane_aging(sess: AsyncSession):
+            svc = DashboardService(sess)
+            aging, top_customers = await svc._receivables_aging_and_top_customers(tenant_id)
+            top_suppliers = await svc._top_suppliers(tenant_id)
+            return aging, top_customers, top_suppliers
+
+        async def lane_stock_gst(sess: AsyncSession):
+            _, low = await InventoryReportService(sess).get_current_stock(tenant_id=tenant_id, page=1, page_size=1, status_filter=LOW_STOCK, search=None)
+            _, out = await InventoryReportService(sess).get_current_stock(tenant_id=tenant_id, page=1, page_size=1, status_filter=OUT_OF_STOCK, search=None)
+            return low, out
+
+        async def lane_gst_payments(sess: AsyncSession):
+            gst = await GstrService(sess).dashboard(tenant_id=tenant_id, return_period=return_period)
+            svc = DashboardService(sess)
+            coll = await svc._payment_total(tenant_id=tenant_id, party_type=PAYMENT_CUSTOMER, date_from=date_from, date_to=date_to)
+            supp = await svc._payment_total(tenant_id=tenant_id, party_type=PAYMENT_SUPPLIER, date_from=date_from, date_to=date_to)
+            return gst, coll, supp
+
+        async def lane_pipeline(sess: AsyncSession):
+            svc = DashboardService(sess)
+            return await svc._pipeline_counts(tenant_id), await svc._payment_exceptions(tenant_id)
+
+        (
+            (sales_summary, purchase_summary, top_products),
+            (receivables_summary_row, payables_summary_row),
+            (aging, top_customers, top_suppliers),
+            (low_stock_total, out_of_stock_total),
+            (gst_dashboard, collections, supplier_payments),
+            (pipeline, payment_exceptions),
+        ) = await run_lanes(
+            self._session, tenant_id,
+            [lane_sales, lane_parties, lane_aging, lane_stock_gst, lane_gst_payments, lane_pipeline],
         )
-
-        aging, top_customers = await self._receivables_aging_and_top_customers(tenant_id)
-        top_suppliers = await self._top_suppliers(tenant_id)
-        pipeline = await self._pipeline_counts(tenant_id)
-        payment_exceptions = await self._payment_exceptions(tenant_id)
+        receivables_summary = receivables_summary_row
+        payables_summary = payables_summary_row
 
         return {
             "period": {"date_from": date_from.isoformat(), "date_to": date_to.isoformat()},

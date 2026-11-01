@@ -5,8 +5,7 @@
 // URL/credentials/correlation-id conventions as api/client.ts, then
 // triggers a browser download from the returned blob.
 
-const API_BASE_URL: string =
-  (import.meta as any).env?.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1';
+import { API_BASE_URL } from './baseUrl';
 
 export type ExportFormat = 'xlsx' | 'pdf';
 export type ExportScope = 'CURRENT_PAGE' | 'ALL_FILTERED';

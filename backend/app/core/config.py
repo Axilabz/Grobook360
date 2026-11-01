@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     database_pool_size: int = 5
     database_max_overflow: int = 10
     database_echo: bool = False
+    # In-process cache of session-active + permission lookups (0 = off). See app/core/auth_cache.py.
+    auth_cache_ttl_seconds: int = 0
+    # >0 = run independent read-only report queries in parallel lanes (own connections). See services/reports/parallel.py.
+    report_parallel_lanes: int = 0
     # Hosted Postgres (Supabase): TLS is mandatory. asyncpg ignores libpq's
     # `sslmode=` URL param, so it is driven from this flag instead.
     database_ssl: bool = False

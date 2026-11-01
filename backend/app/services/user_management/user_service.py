@@ -13,6 +13,7 @@ from datetime import timedelta, timezone, datetime
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import auth_cache
 from app.core.concurrency import check_row_version
 from app.core.config import get_settings
 from app.core.error_codes import (
@@ -298,6 +299,7 @@ class UserManagementService:
             )
             for session_row in sessions.scalars().all():
                 session_row.revoked_at = utcnow()
+                auth_cache.invalidate_all()
 
         await AuditService(self._session).record(
             tenant_id=tenant_id,
