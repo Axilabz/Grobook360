@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     database_pool_size: int = 5
     database_max_overflow: int = 10
     database_echo: bool = False
+    # Hosted Postgres (Supabase): TLS is mandatory. asyncpg ignores libpq's
+    # `sslmode=` URL param, so it is driven from this flag instead.
+    database_ssl: bool = False
+    # Set true when DATABASE_URL points at Supabase's transaction pooler
+    # (port 6543, PgBouncer) — asyncpg prepared statements break there.
+    database_use_pgbouncer: bool = False
+    # Optional direct/session-pooler URL (port 5432) used ONLY by Alembic;
+    # DDL migrations must not run through the transaction pooler.
+    migration_database_url: str | None = None
 
     jwt_secret_key: str = Field(..., min_length=32)
     jwt_algorithm: str = "HS256"

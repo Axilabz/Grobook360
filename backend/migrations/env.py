@@ -22,7 +22,11 @@ target_metadata = Base.metadata
 settings = get_settings()
 # Alembic's sync engine needs the psycopg2 driver, not asyncpg; the app itself
 # keeps using asyncpg via app.db.session. This substitution only affects migrations.
-sync_url = str(settings.database_url).replace("postgresql+asyncpg://", "postgresql://")
+sync_url = (settings.migration_database_url or str(settings.database_url)).replace(
+    "postgresql+asyncpg://", "postgresql://"
+)
+if settings.database_ssl and "sslmode=" not in sync_url:
+    sync_url += ("&" if "?" in sync_url else "?") + "sslmode=require"
 config.set_main_option("sqlalchemy.url", sync_url)
 
 
