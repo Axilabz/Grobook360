@@ -27,8 +27,9 @@ else:
         pool_size=settings.database_pool_size,
         max_overflow=settings.database_max_overflow,
         # No pre_ping: it costs one extra network round trip per checkout.
-        # pool_recycle retires connections before the pooler can drop them.
-        pool_recycle=240,
+        # Long recycle: opening a connection to a remote DB costs 1-5 s and would
+        # happen INSIDE a user request. app.main's keepalive keeps idle ones alive.
+        pool_recycle=1800,
         connect_args=_connect_args,
     )
 

@@ -37,10 +37,24 @@ def create_app() -> FastAPI:
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
 
+        n = max(1, settings.database_pool_size)
         try:
-            await asyncio.gather(*[_ping() for _ in range(min(settings.database_pool_size, 4))])
+            await asyncio.gather(*[_ping() for _ in range(n)])
         except Exception:  # noqa: BLE001
             pass
+
+        async def _keepalive() -> None:
+            # Ping every pooled connection periodically so none sits idle long
+            # enough for the pooler/NAT to drop it (a dead one would otherwise
+            # cost a 1-5 s reconnect inside a user request).
+            while True:
+                await asyncio.sleep(45)
+                try:
+                    await asyncio.gather(*[_ping() for _ in range(n)])
+                except Exception:  # noqa: BLE001
+                    pass
+
+        app.state.db_keepalive = asyncio.create_task(_keepalive())
 
     app.add_middleware(GZipMiddleware, minimum_size=1024)
     app.add_middleware(CorrelationIdMiddleware)

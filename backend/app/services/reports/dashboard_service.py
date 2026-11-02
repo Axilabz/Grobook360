@@ -21,6 +21,7 @@ Today/This-Week/Custom-Range dashboard filter. This is a documented
 simplification, not a bug (see PROMPT-027-NOTES.md).
 """
 
+import time
 import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -28,6 +29,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models.delivery_challan import DRAFT as DC_DRAFT
 from app.models.delivery_challan import DeliveryChallan
 from app.models.payment import BOUNCED as CHEQUE_BOUNCED
@@ -55,6 +57,7 @@ from app.services.reports.receivables_payables_service import ReceivablesPayable
 from app.services.reports.sales_report_service import SalesReportService
 
 _ZERO = Decimal("0")
+_DASHBOARD_CACHE: dict[tuple, tuple[float, dict]] = {}
 _RECENT_TRANSACTIONS_LIMIT = 8
 _TOP_N = 5
 
@@ -97,6 +100,22 @@ class DashboardService:
         self._session = session
 
     async def get_dashboard(self, *, tenant: Tenant, date_from: date, date_to: date) -> dict:
+        # Short per-tenant cache (off by default): the dashboard is ~30 aggregate
+        # queries; figures may lag real writes by at most the TTL.
+        ttl = get_settings().report_cache_ttl_seconds
+        key = (tenant.id, date_from, date_to)
+        if ttl > 0:
+            hit = _DASHBOARD_CACHE.get(key)
+            if hit and hit[0] > time.monotonic():
+                return hit[1]
+        data = await self._compute_dashboard(tenant=tenant, date_from=date_from, date_to=date_to)
+        if ttl > 0:
+            if len(_DASHBOARD_CACHE) > 500:
+                _DASHBOARD_CACHE.clear()
+            _DASHBOARD_CACHE[key] = (time.monotonic() + ttl, data)
+        return data
+
+    async def _compute_dashboard(self, *, tenant: Tenant, date_from: date, date_to: date) -> dict:
         tenant_id = tenant.id
         return_period = date.today().strftime("%Y-%m")
 

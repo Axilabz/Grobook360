@@ -32,16 +32,23 @@ async def resolve_role_and_permissions(
     if user.tenant_id is None:
         return None, []
 
-    role_result = await session.execute(
-        select(Role)
-        .join(UserRole, UserRole.role_id == Role.id)
-        .where(UserRole.user_id == user.id, UserRole.tenant_id == user.tenant_id)
-    )
-    role = role_result.scalars().first()
-    if role is None:
+    # ONE round trip: role + its permission codes joined (was two queries).
+    rows = (
+        await session.execute(
+            select(Role.id, Role.name, Permission.code)
+            .select_from(UserRole)
+            .join(Role, Role.id == UserRole.role_id)
+            .outerjoin(RolePermission, RolePermission.role_id == Role.id)
+            .outerjoin(Permission, Permission.id == RolePermission.permission_id)
+            .where(UserRole.user_id == user.id, UserRole.tenant_id == user.tenant_id)
+            .order_by(Role.created_at, Role.id)
+        )
+    ).all()
+    if not rows:
         return None, []
 
-    return role.name, await _permissions_for_role_id(session, role.id)
+    first_role_id, first_role_name = rows[0][0], rows[0][1]
+    return first_role_name, [code for role_id, _name, code in rows if role_id == first_role_id and code is not None]
 
 
 async def resolve_permissions_by_role_name(
@@ -52,7 +59,7 @@ async def resolve_permissions_by_role_name(
     if tenant_id is None or role_name is None:
         return frozenset()
 
-    # ONE round trip (role + permissions joined) — this runs on every request,
+    # ONE round trip (role + permissions joined) - this runs on every request,
     # and each extra query costs a full network RTT to the hosted database.
     perm_result = await session.execute(
         select(Permission.code)

@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     auth_cache_ttl_seconds: int = 0
     # >0 = run independent read-only report queries in parallel lanes (own connections). See services/reports/parallel.py.
     report_parallel_lanes: int = 0
+    # >0 = cache the Management Dashboard payload per tenant+period for N seconds (0 = off).
+    report_cache_ttl_seconds: int = 0
     # Hosted Postgres (Supabase): TLS is mandatory. asyncpg ignores libpq's
     # `sslmode=` URL param, so it is driven from this flag instead.
     database_ssl: bool = False
