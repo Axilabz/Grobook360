@@ -20,6 +20,7 @@ import {
   cancelSalesReturn,
 } from '../api/salesReturns';
 import { listSalesInvoices, SalesInvoiceListItem, ReturnEligibility, getReturnEligibility } from '../api/salesInvoices';
+import LoadingState from '../shared/LoadingState';
 
 const STATUS_BADGE: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -104,7 +105,7 @@ const SalesReturnManagement: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+        <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-gray-500 dark:text-gray-400">No sales returns found.</div>
       ) : (
@@ -305,7 +306,7 @@ const ReturnFormModal: React.FC<{ onClose: () => void; onSaved: () => void }> = 
               {invoiceQuery && (
                 <div className="absolute z-30 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-64 overflow-auto">
                   {isSearching ? (
-                    <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-gray-400" /></div>
+                    <div className="flex justify-center py-4"><LoadingState bare compact /></div>
                   ) : invoiceResults.length === 0 ? (
                     <p className="px-3 py-3 text-[13px] text-gray-400 italic">No eligible invoices found (must be POSTED).</p>
                   ) : (
@@ -325,7 +326,7 @@ const ReturnFormModal: React.FC<{ onClose: () => void; onSaved: () => void }> = 
               )}
             </div>
           ) : isLoadingEligibility || !eligibility ? (
-            <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-gray-400" /></div>
+            <div className="flex justify-center py-8"><LoadingState bare /></div>
           ) : (
             <>
               <div className="flex items-center justify-between px-3 py-2.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 mb-4">
@@ -453,7 +454,7 @@ const ReturnDetailModal: React.FC<{ returnId: string; onClose: () => void; onCha
   if (isLoading || !sales_return) {
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-        <Loader2 size={28} className="animate-spin text-white" />
+        <LoadingState bare />
       </div>
     );
   }

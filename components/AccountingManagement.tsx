@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Search, X, Loader2, AlertTriangle, Ban, ChevronLeft, ChevronRight,
+  Search, X, AlertTriangle, Ban, ChevronLeft, ChevronRight,
   Eye, BookOpen, Landmark, ListTree,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ApiError } from '../api/client';
+import LoadingState from '../shared/LoadingState';
 import {
   JournalListItem, JournalDetail, ChartOfAccountItem, AccountMappingItem,
   listJournals, getJournal, reverseJournal, listChartOfAccounts, listAccountMappings,
@@ -133,7 +134,7 @@ const AccountingManagement: React.FC = () => {
           </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+            <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
           ) : items.length === 0 ? (
             <div className="text-center py-16 text-gray-500 dark:text-gray-400">No journals found.</div>
           ) : (
@@ -212,7 +213,7 @@ const AccountingManagement: React.FC = () => {
 
       {tab === 'accounts' && canViewAccounts && (
         isLoadingAccounts ? (
-          <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+          <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
         ) : (
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto">
@@ -245,7 +246,7 @@ const AccountingManagement: React.FC = () => {
 
       {tab === 'mappings' && canViewMappings && (
         isLoadingAccounts ? (
-          <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+          <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
         ) : (
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto">
@@ -319,7 +320,7 @@ const JournalDetailModal: React.FC<{ journalId: string; onClose: () => void; onC
   if (isLoading || !journal) {
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-        <Loader2 size={28} className="animate-spin text-white" />
+        <LoadingState bare />
       </div>
     );
   }

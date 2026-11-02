@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Loader2, ChevronLeft, ChevronRight, Gauge, TrendingUp, TrendingDown, Boxes,
+  ChevronLeft, ChevronRight, Gauge, TrendingUp, TrendingDown, Boxes,
   Landmark, Wallet, BookOpen, Scale, FileText, AlertTriangle, CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -8,6 +8,7 @@ import { useToast } from '../context/ToastContext';
 import { ApiError, apiRequest } from '../api/client';
 import * as R from '../api/reports';
 import ExportButton from '../shared/ExportButton';
+import LoadingState from '../shared/LoadingState';
 
 function currentReturnPeriod(): string {
   const now = new Date();
@@ -161,7 +162,7 @@ const DashboardTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') =>
 
   useEffect(() => { load(); }, [load]);
 
-  if (isLoading || !data) return <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>;
+  if (isLoading || !data) return <div className="flex items-center justify-center py-16"><LoadingState bare /></div>;
 
   return (
     <div className="space-y-4">
@@ -229,7 +230,7 @@ const SalesTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') => voi
     <div>
       <SubTabs options={[['summary', 'Summary'], ['register', 'Invoice Register'], ['customers', 'Customer-wise'], ['products', 'Product-wise'], ['returns', 'Returns']]} active={sub} onChange={setSub} />
       <DateFilterBar dateFrom={dateFrom} dateTo={dateTo} onFrom={setDateFrom} onTo={setDateTo} />
-      {isLoading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
+      {isLoading ? <div className="flex items-center justify-center py-16"><LoadingState bare /></div> : (
         <>
           {sub === 'summary' && summary && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -312,7 +313,7 @@ const PurchaseTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') => 
     <div>
       <SubTabs options={[['summary', 'Summary'], ['register', 'Invoice Register'], ['suppliers', 'Supplier-wise'], ['products', 'Product-wise'], ['returns', 'Returns']]} active={sub} onChange={setSub} />
       <DateFilterBar dateFrom={dateFrom} dateTo={dateTo} onFrom={setDateFrom} onTo={setDateTo} />
-      {isLoading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
+      {isLoading ? <div className="flex items-center justify-center py-16"><LoadingState bare /></div> : (
         <>
           {sub === 'summary' && summary && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -385,7 +386,7 @@ const InventoryTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') =>
   return (
     <div>
       <SubTabs options={[['stock', 'Current Stock'], ['movements', 'Stock Movements']]} active={sub} onChange={setSub} />
-      {isLoading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
+      {isLoading ? <div className="flex items-center justify-center py-16"><LoadingState bare /></div> : (
         <>
           {sub === 'stock' && (
             <>
@@ -442,7 +443,7 @@ const OutstandingTab: React.FC<{ kind: 'receivables' | 'payables'; showToast: (m
           <StatCard label="Unpaid" value={String(summary.unpaid_count)} tone={summary.unpaid_count > 0 ? 'negative' : 'default'} />
         </div>
       )}
-      {isLoading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
+      {isLoading ? <div className="flex items-center justify-center py-16"><LoadingState bare /></div> : (
         <>
           <DataTable
             columns={[kind === 'receivables' ? 'Customer' : 'Supplier', 'Invoice #', 'Date', 'Due Date', 'Amount', 'Paid', 'Outstanding', 'Status']}
@@ -516,7 +517,7 @@ const PaymentsTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') => 
         </div>
       )}
 
-      {isLoading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
+      {isLoading ? <div className="flex items-center justify-center py-16"><LoadingState bare /></div> : (
         <>
           {sub === 'register' && (
             <>
@@ -609,7 +610,7 @@ const AccountingTab: React.FC<{ perms: Record<string, boolean>; showToast: (m: s
   return (
     <div>
       <SubTabs options={subOptions} active={sub} onChange={setSub} />
-      {isLoading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
+      {isLoading ? <div className="flex items-center justify-center py-16"><LoadingState bare /></div> : (
         <>
           {sub === 'gl' && (
             <div className="space-y-3">
@@ -711,7 +712,7 @@ const GstReportTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') =>
         <label className="text-[13px] text-gray-500 dark:text-gray-400">Return Period</label>
         <input type="month" value={returnPeriod} onChange={(e) => setReturnPeriod(e.target.value)} className="border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-[13px] px-3 py-1.5" />
       </div>
-      {isLoading || !summary ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
+      {isLoading || !summary ? <div className="flex items-center justify-center py-16"><LoadingState bare /></div> : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard label="Output GST" value={`₹${summary.output_gst}`} />

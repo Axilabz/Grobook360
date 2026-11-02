@@ -27,6 +27,7 @@ import {
 import { UnitOfMeasure, listUnits, createUnit } from '../api/units';
 import MobileAccordionCard from '../shared/MobileAccordionCard';
 import MobileFilterToggle from '../shared/MobileFilterToggle';
+import LoadingState from '../shared/LoadingState';
 
 // Standard GST slabs — deliberately a closed, static set (not free-text),
 // since GST rates are a fixed, government-defined list, not an open field.
@@ -221,7 +222,7 @@ const ProductManagement: React.FC = () => {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 size={28} className="animate-spin text-gray-400" />
+          <LoadingState bare />
         </div>
       ) : products.length === 0 ? (
         <div className="text-center py-16 text-gray-500 dark:text-gray-400">No products found.</div>

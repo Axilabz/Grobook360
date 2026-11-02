@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Search, X, Loader2, ChevronLeft, ChevronRight, Eye, Gauge, ListChecks,
+  Search, X, ChevronLeft, ChevronRight, Eye, Gauge, ListChecks,
   FileText, FileSpreadsheet, Scale, AlertTriangle, CheckCircle2, Info,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ApiError } from '../api/client';
+import LoadingState from '../shared/LoadingState';
 import {
   GstTransactionListItem, GstTransactionDetail, GstDashboard, Gstr1Dataset, Gstr3bDataset,
   ValidationResult, ReconciliationResult,
@@ -192,7 +193,7 @@ const GstManagement: React.FC = () => {
 
       {tab === 'dashboard' && (
         isLoadingDashboard || !dashboard ? (
-          <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+          <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <StatCard label="Output GST" value={`₹${dashboard.output_gst}`} />
@@ -230,7 +231,7 @@ const GstManagement: React.FC = () => {
           </div>
 
           {isLoadingTxns ? (
-            <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+            <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
           ) : items.length === 0 ? (
             <div className="text-center py-16 text-gray-500 dark:text-gray-400">No GST transactions found.</div>
           ) : (
@@ -306,7 +307,7 @@ const GstManagement: React.FC = () => {
 
       {tab === 'gstr1' && (
         isLoadingReturn || !gstr1 ? (
-          <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+          <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
         ) : (
           <div className="space-y-4">
             {canPrepare && (
@@ -349,7 +350,7 @@ const GstManagement: React.FC = () => {
 
       {tab === 'gstr3b' && (
         isLoadingReturn || !gstr3b ? (
-          <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+          <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
         ) : (
           <div className="space-y-4">
             {canPrepare && (
@@ -375,7 +376,7 @@ const GstManagement: React.FC = () => {
 
       {tab === 'reconciliation' && (
         isLoadingReturn || !reconciliation ? (
-          <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+          <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
         ) : (
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 space-y-4 text-[14px]">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
@@ -469,7 +470,7 @@ const GstTransactionModal: React.FC<{ transactionId: string; onClose: () => void
   if (isLoading || !txn) {
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-        <Loader2 size={28} className="animate-spin text-white" />
+        <LoadingState bare />
       </div>
     );
   }

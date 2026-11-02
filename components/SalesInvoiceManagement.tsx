@@ -31,6 +31,7 @@ import { Customer } from '../api/customers';
 import CustomerSelector from '../shared/CustomerSelector';
 import ProductLineSelector, { SalesLineDraft } from '../shared/ProductLineSelector';
 import EinvoiceEwayBillPanel from './EinvoiceEwayBillPanel';
+import LoadingState from '../shared/LoadingState';
 
 const STATUS_BADGE: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -138,7 +139,7 @@ const SalesInvoiceManagement: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+        <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-gray-500 dark:text-gray-400">No sales invoices found.</div>
       ) : (
@@ -428,7 +429,7 @@ const InvoiceDetailModal: React.FC<{
   if (isLoading || !invoice) {
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-        <Loader2 size={28} className="animate-spin text-white" />
+        <LoadingState bare />
       </div>
     );
   }
@@ -514,7 +515,7 @@ const InvoiceDetailModal: React.FC<{
                 </span>
               </div>
               {isLoadingHistory ? (
-                <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-gray-400" /></div>
+                <div className="flex justify-center py-4"><LoadingState bare compact /></div>
               ) : paymentHistory.length === 0 ? (
                 <p className="text-[13px] text-gray-400 italic">No collections recorded yet.</p>
               ) : (
@@ -692,7 +693,7 @@ const CreateReturnFromInvoiceModal: React.FC<{ invoiceId: string; onClose: () =>
         </div>
         <div className="p-6">
           {isLoading || !eligibility ? (
-            <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-gray-400" /></div>
+            <div className="flex justify-center py-8"><LoadingState bare /></div>
           ) : (
             <>
               <div className="flex items-center justify-between px-3 py-2.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 mb-4">
@@ -824,7 +825,7 @@ const InvoicePrintPreviewModal: React.FC<{ invoice: SalesInvoiceDetail; onClose:
       </div>
 
       {!config ? (
-        <div className="flex items-center justify-center py-24"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+        <div className="flex items-center justify-center py-24"><LoadingState bare /></div>
       ) : (
         <div className="max-w-3xl mx-auto">
           <InvoiceRenderer config={config} invoice={renderData} business={business} />

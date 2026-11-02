@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Loader2, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { Supplier, listSuppliers } from '../api/suppliers';
+import LoadingState from './LoadingState';
 
 /**
  * Purchase Management Foundation's counterpart to `CustomerSelector.tsx`
@@ -95,7 +96,7 @@ const SupplierSelector: React.FC<SupplierSelectorProps> = ({ value, onChange, ac
           {isOpen && (
             <div className="absolute z-30 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-64 overflow-auto">
               {isLoading ? (
-                <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-gray-400" /></div>
+                <div className="flex justify-center py-4"><LoadingState bare compact /></div>
               ) : results.length === 0 ? (
                 <p className="px-3 py-3 text-[13px] text-gray-400 italic">No suppliers found.</p>
               ) : (

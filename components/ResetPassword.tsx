@@ -4,6 +4,7 @@ import Input from './Input';
 import { AuthView } from '../types';
 import { validateResetToken, resetPassword } from '../api/passwordReset';
 import { ApiError } from '../api/client';
+import LoadingState from '../shared/LoadingState';
 
 interface ResetPasswordProps {
   token: string;
@@ -85,8 +86,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ token, onChangeView }) =>
   if (screenState === 'checking-token') {
     return (
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden w-full max-w-md mx-auto border border-gray-100 dark:border-gray-700 p-10 text-center">
-        <Loader2 size={28} className="animate-spin mx-auto mb-3 text-gray-400" />
-        <p className="text-[14px] text-gray-500 dark:text-gray-400">Checking your reset link…</p>
+        <LoadingState bare label="Checking your reset link…" />
       </div>
     );
   }

@@ -4,6 +4,7 @@ import App from './App';
 import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import ErrorBoundary from './shared/ErrorBoundary';
+import { LoadingHost } from './shared/LoadingState';
 import { registerServiceWorker } from './pwa/registerServiceWorker';
 
 const rootElement = document.getElementById('root');
@@ -18,6 +19,7 @@ root.render(
       <ThemeProvider>
         <AuthProvider>
           <App />
+          <LoadingHost />
         </AuthProvider>
       </ThemeProvider>
     </ErrorBoundary>

@@ -24,6 +24,7 @@ import { GST_STATE_CODES, stateNameForCode, stateCodeForName } from '../shared/g
 import ExportButton from '../shared/ExportButton';
 import MobileAccordionCard from '../shared/MobileAccordionCard';
 import CustomerLocationMap from '../shared/CustomerLocationMap';
+import LoadingState from '../shared/LoadingState';
 
 const STATUS_BADGE: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -192,7 +193,7 @@ const CustomerManagement: React.FC = () => {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 size={28} className="animate-spin text-gray-400" />
+          <LoadingState bare />
         </div>
       ) : customers.length === 0 ? (
         <div className="text-center py-16 text-gray-500 dark:text-gray-400">No customers found.</div>

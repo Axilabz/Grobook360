@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Trash2, Info, Loader2, UserPlus } from 'lucide-react';
+import { X, Plus, Trash2, Info, UserPlus } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { readCachedProducts, readCachedCustomers, readCachedUnits, oldestSync, CachedRecordWithFreshness } from '../pwa/masterDataCache';
 import { createOfflineInvoice, calculateProvisionalLine, calculateProvisionalTotals, ProvisionalLineInput } from '../pwa/offlineInvoiceService';
@@ -7,6 +7,7 @@ import { createOfflineCustomer } from '../pwa/offlineCustomerSupplierService';
 import { Product } from '../api/products';
 import { Customer } from '../api/customers';
 import { UnitOfMeasure } from '../api/units';
+import LoadingState from '../shared/LoadingState';
 
 interface DraftLine {
   key: string;
@@ -126,7 +127,7 @@ const OfflineInvoiceCapture: React.FC<{ tenantId: string; userId: string; onClos
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+          <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
         ) : (
           <div className="p-6 space-y-5 text-[14px]">
             <div className="flex items-start gap-2 text-[12px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 rounded-md p-3">

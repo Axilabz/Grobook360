@@ -24,6 +24,7 @@ import {
 import { Supplier } from '../api/suppliers';
 import SupplierSelector from '../shared/SupplierSelector';
 import ProductLineSelector, { SalesLineDraft } from '../shared/ProductLineSelector';
+import LoadingState from '../shared/LoadingState';
 
 const STATUS_BADGE: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -123,7 +124,7 @@ const PurchaseOrderManagement: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+        <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-gray-500 dark:text-gray-400">No purchase orders found.</div>
       ) : (
@@ -416,7 +417,7 @@ const OrderDetailModal: React.FC<{ orderId: string; onClose: () => void; onChang
   if (isLoading || !order) {
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-        <Loader2 size={28} className="animate-spin text-white" />
+        <LoadingState bare />
       </div>
     );
   }
@@ -533,7 +534,7 @@ const OrderDetailModal: React.FC<{ orderId: string; onClose: () => void; onChang
               <FileText size={14} /> Related Documents
             </h4>
             {isLoadingRelated ? (
-              <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-gray-400" /></div>
+              <div className="flex justify-center py-4"><LoadingState bare compact /></div>
             ) : related && (related.goods_receipts.length > 0 || related.purchase_invoices.length > 0) ? (
               <div className="space-y-3">
                 {related.goods_receipts.length > 0 && (
@@ -576,7 +577,7 @@ const OrderDetailModal: React.FC<{ orderId: string; onClose: () => void; onChang
               <History size={14} /> Audit History
             </h4>
             {isLoadingAudit ? (
-              <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-gray-400" /></div>
+              <div className="flex justify-center py-4"><LoadingState bare compact /></div>
             ) : audit && audit.events.length > 0 ? (
               <ul className="space-y-2">
                 {audit.events.map((event) => (

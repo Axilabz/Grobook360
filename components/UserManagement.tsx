@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext';
 import MobileFilterToggle from '../shared/MobileFilterToggle';
 import MobileAccordionCard from '../shared/MobileAccordionCard';
 import { ApiError, ConcurrencyConflictError } from '../api/client';
+import LoadingState from '../shared/LoadingState';
 import {
   TenantUser,
   listUsers,
@@ -166,7 +167,7 @@ const UserManagement: React.FC = () => {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 size={28} className="animate-spin text-gray-400" />
+          <LoadingState bare />
         </div>
       ) : users.length === 0 ? (
         <div className="text-center py-16 text-gray-500 dark:text-gray-400">No users found.</div>

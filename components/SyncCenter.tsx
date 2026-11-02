@@ -10,6 +10,7 @@ import { refreshMasterData } from '../pwa/masterDataCache';
 import { isBrowserOnline } from '../pwa/connectivity';
 import { SyncQueueItem, SyncStatus } from '../pwa/offlineTypes';
 import OfflineInvoiceCapture from './OfflineInvoiceCapture';
+import LoadingState from '../shared/LoadingState';
 
 const STATUS_META: Record<SyncStatus, { label: string; className: string; icon: React.ReactNode }> = {
   LOCAL_DRAFT: { label: 'Draft', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400', icon: <Clock size={12} /> },
@@ -151,7 +152,7 @@ const SyncCenter: React.FC = () => {
       )}
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+        <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-gray-500 dark:text-gray-400">No transactions in this view.</div>
       ) : (

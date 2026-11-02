@@ -11,6 +11,7 @@ import { useNavigation } from '../context/NavigationContext';
 import { ApiError, ConcurrencyConflictError } from '../api/client';
 import { getTenantProfile, updateTenantProfile } from '../api/tenant';
 import { stateNameForCode, stateCodeForName } from '../shared/gstStateCodes';
+import LoadingState from '../shared/LoadingState';
 
 // "Country" is the one field with no real backend column (every tenant in
 // this MVP is India-only, per the GST state-code scheme used everywhere
@@ -358,7 +359,7 @@ const ViewCompany: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 size={28} className="animate-spin text-gray-400" />
+        <LoadingState bare />
       </div>
     );
   }

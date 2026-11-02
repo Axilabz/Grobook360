@@ -23,6 +23,7 @@ import {
 import { Customer } from '../api/customers';
 import CustomerSelector from '../shared/CustomerSelector';
 import ProductLineSelector, { SalesLineDraft } from '../shared/ProductLineSelector';
+import LoadingState from '../shared/LoadingState';
 
 const STATUS_BADGE: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -145,7 +146,7 @@ const EstimateManagement: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+        <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-gray-500 dark:text-gray-400">No estimates found.</div>
       ) : (
@@ -429,7 +430,7 @@ const EstimateDetailModal: React.FC<{ estimateId: string; onClose: () => void; o
   if (isLoading || !estimate) {
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-        <Loader2 size={28} className="animate-spin text-white" />
+        <LoadingState bare />
       </div>
     );
   }
@@ -497,7 +498,7 @@ const EstimateDetailModal: React.FC<{ estimateId: string; onClose: () => void; o
           <div>
             <p className="text-gray-400 text-[12px] uppercase font-semibold flex items-center gap-1.5 mb-2"><History size={13} /> Action History</p>
             {historyLoading ? (
-              <p className="text-[13px] text-gray-400">Loading…</p>
+              <LoadingState bare compact />
             ) : history.length === 0 ? (
               <p className="text-[13px] text-gray-400">No history recorded.</p>
             ) : (

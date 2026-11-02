@@ -22,6 +22,7 @@ import { Customer } from '../api/customers';
 import CustomerSelector from '../shared/CustomerSelector';
 import ProductLineSelector, { SalesLineDraft } from '../shared/ProductLineSelector';
 import { getProduct, ProductDetail } from '../api/products';
+import LoadingState from '../shared/LoadingState';
 
 const STATUS_BADGE: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -111,7 +112,7 @@ const SalesOrderManagement: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+        <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-gray-500 dark:text-gray-400">No sales orders found.</div>
       ) : (
@@ -405,7 +406,7 @@ const OrderDetailModal: React.FC<{ orderId: string; onClose: () => void; onChang
   if (isLoading || !order) {
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-        <Loader2 size={28} className="animate-spin text-white" />
+        <LoadingState bare />
       </div>
     );
   }

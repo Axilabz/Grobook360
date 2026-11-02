@@ -34,6 +34,7 @@ import { Supplier } from '../api/suppliers';
 import { listPurchaseOrders, PurchaseOrderListItem } from '../api/purchaseOrders';
 import SupplierSelector from '../shared/SupplierSelector';
 import ProductLineSelector, { SalesLineDraft } from '../shared/ProductLineSelector';
+import LoadingState from '../shared/LoadingState';
 
 const STATUS_BADGE: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
@@ -157,7 +158,7 @@ const PurchaseInvoiceManagement: React.FC = () => {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div>
+        <div className="flex items-center justify-center py-16"><LoadingState bare /></div>
       ) : items.length === 0 ? (
         <div className="text-center py-16 text-gray-500 dark:text-gray-400">No purchase invoices found.</div>
       ) : (
@@ -496,7 +497,7 @@ const CreateInvoiceFromPoModal: React.FC<{ onClose: () => void; onSaved: () => v
               {poQuery && (
                 <div className="absolute z-30 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-64 overflow-auto">
                   {isSearching ? (
-                    <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-gray-400" /></div>
+                    <div className="flex justify-center py-4"><LoadingState bare compact /></div>
                   ) : poResults.length === 0 ? (
                     <p className="px-3 py-3 text-[13px] text-gray-400 italic">No eligible purchase orders found.</p>
                   ) : (
@@ -516,7 +517,7 @@ const CreateInvoiceFromPoModal: React.FC<{ onClose: () => void; onSaved: () => v
               )}
             </div>
           ) : isLoadingEligibility ? (
-            <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-gray-400" /></div>
+            <div className="flex justify-center py-8"><LoadingState bare /></div>
           ) : eligibility ? (
             <>
               <div className="flex items-center justify-between px-3 py-2.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 mb-4">
@@ -673,7 +674,7 @@ const InvoiceDetailModal: React.FC<{ invoiceId: string; onClose: () => void; onC
   if (isLoading || !invoice) {
     return (
       <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-        <Loader2 size={28} className="animate-spin text-white" />
+        <LoadingState bare />
       </div>
     );
   }
@@ -813,7 +814,7 @@ const InvoiceDetailModal: React.FC<{ invoiceId: string; onClose: () => void; onC
               <FileText size={14} /> Related Documents
             </h4>
             {isLoadingRelated ? (
-              <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-gray-400" /></div>
+              <div className="flex justify-center py-4"><LoadingState bare compact /></div>
             ) : related ? (
               <div className="space-y-3">
                 {related.source_purchase_order_number && (
@@ -862,7 +863,7 @@ const InvoiceDetailModal: React.FC<{ invoiceId: string; onClose: () => void; onC
               <History size={14} /> Audit History
             </h4>
             {isLoadingAudit ? (
-              <div className="flex justify-center py-4"><Loader2 size={18} className="animate-spin text-gray-400" /></div>
+              <div className="flex justify-center py-4"><LoadingState bare compact /></div>
             ) : audit && audit.events.length > 0 ? (
               <ul className="space-y-2">
                 {audit.events.map((event) => (
@@ -1107,7 +1108,7 @@ const CreateReturnFromInvoiceModal: React.FC<{ invoiceId: string; onClose: () =>
         </div>
         <div className="p-6">
           {isLoading || !eligibility ? (
-            <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-gray-400" /></div>
+            <div className="flex justify-center py-8"><LoadingState bare /></div>
           ) : (
             <>
               <div className="flex items-center justify-between px-3 py-2.5 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 mb-4">

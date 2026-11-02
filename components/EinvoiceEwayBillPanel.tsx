@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { ApiError } from '../api/client';
 import { EinvoiceDetail, getEinvoice, generateEinvoice, refreshEinvoiceStatus, cancelEinvoice } from '../api/einvoice';
 import { EwayBillDetail, getEwayBillByInvoice, generateEwayBill, refreshEwayBillStatus, cancelEwayBill } from '../api/ewayBills';
+import LoadingState from '../shared/LoadingState';
 
 const STATUS_BADGE: Record<string, string> = {
   NOT_APPLICABLE: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
@@ -87,7 +88,7 @@ const EinvoiceEwayBillPanel: React.FC<Props> = ({ invoiceId, invoiceStatus }) =>
       </h4>
 
       {isLoading ? (
-        <div className="flex justify-center py-4"><Loader2 size={20} className="animate-spin text-gray-400" /></div>
+        <div className="flex justify-center py-4"><LoadingState bare compact /></div>
       ) : (
         <>
           {/* E-Invoice */}

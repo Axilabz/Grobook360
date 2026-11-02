@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Loader2, X, Plus, Users, CalendarCheck, CalendarDays, Wallet, CheckCircle2, AlertTriangle, PlusCircle,
+  X, Plus, Users, CalendarCheck, CalendarDays, Wallet, CheckCircle2, AlertTriangle, PlusCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { ApiError } from '../api/client';
 import * as P from '../api/payroll';
+import LoadingState from '../shared/LoadingState';
 
 type MainTab = 'employees' | 'attendance' | 'leave' | 'payroll';
 
@@ -109,7 +110,7 @@ const EmployeesTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') =>
           </button>
         </div>
       )}
-      {isLoading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
+      {isLoading ? <div className="flex items-center justify-center py-16"><LoadingState bare /></div> : (
         <>
           <div className="hidden md:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="overflow-x-auto">
@@ -220,7 +221,7 @@ const EmployeeDetailModal: React.FC<{ employeeId: string; onClose: () => void; o
   useEffect(() => { load(); }, [load]);
 
   if (isLoading || !employee) {
-    return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"><Loader2 size={28} className="animate-spin text-white" /></div>;
+    return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"><LoadingState bare /></div>;
   }
 
   return (
@@ -402,7 +403,7 @@ const AttendanceTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') =
           <button onClick={handleRecord} className="px-3 py-1.5 rounded-md bg-[#0066ff] text-white text-[12px] font-medium">Record</button>
         </div>
       )}
-      {isLoading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
+      {isLoading ? <div className="flex items-center justify-center py-16"><LoadingState bare /></div> : (
         <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-[13px]">
@@ -487,7 +488,7 @@ const LeaveTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') => voi
           <button onClick={handleCreate} className="px-3 py-1.5 rounded-md bg-[#0066ff] text-white text-[12px] font-medium">Request</button>
         </div>
       )}
-      {isLoading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
+      {isLoading ? <div className="flex items-center justify-center py-16"><LoadingState bare /></div> : (
         <div className="space-y-2">
           {items.map((l) => (
             <div key={l.id} className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4 flex items-center justify-between flex-wrap gap-2">
@@ -558,7 +559,7 @@ const PayrollTab: React.FC<{ showToast: (m: string, t: 'success' | 'error') => v
           </button>
         </div>
       )}
-      {isLoading ? <div className="flex items-center justify-center py-16"><Loader2 size={28} className="animate-spin text-gray-400" /></div> : (
+      {isLoading ? <div className="flex items-center justify-center py-16"><LoadingState bare /></div> : (
         <>
           <div className="mb-4">
             <p className="text-[13px] font-semibold text-gray-800 dark:text-gray-100 mb-2">Payroll Periods</p>
@@ -678,7 +679,7 @@ const PayrollRunModal: React.FC<{ runId: string; onClose: () => void; onChanged:
   };
 
   if (isLoading || !run) {
-    return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"><Loader2 size={28} className="animate-spin text-white" /></div>;
+    return <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"><LoadingState bare /></div>;
   }
 
   return (
@@ -739,7 +740,7 @@ const PayslipModal: React.FC<{ recordId: string; onClose: () => void; showToast:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recordId]);
 
-  if (!payslip) return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"><Loader2 size={28} className="animate-spin text-white" /></div>;
+  if (!payslip) return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"><LoadingState bare /></div>;
 
   const earnings = payslip.lines.filter((l) => l.component_type === 'EARNING');
   const deductions = payslip.lines.filter((l) => l.component_type === 'DEDUCTION');
