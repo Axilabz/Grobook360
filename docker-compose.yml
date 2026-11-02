@@ -1,0 +1,62 @@
+# Local development topology (Phase 1A).
+#
+#   browser/Vite :3000 -> gateway :8080 -> monolith :8000 -> Supabase Postgres
+#
+# The database is NOT a compose service: the project uses the existing Supabase
+# PostgreSQL. Put real values in a root-level `.env` (gitignored); see
+# .env.example. Nothing secret is written in this file.
+#
+# Compose is a development convenience only. It is not the production
+# topology (see docs/deployment/cloudflare-deployment.md).
+
+services:
+  monolith:
+    build:
+      context: ./backend
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+      DATABASE_SSL: ${DATABASE_SSL:-true}
+      DATABASE_USE_PGBOUNCER: ${DATABASE_USE_PGBOUNCER:-false}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-["http://localhost:3000"]}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      AUTH_CACHE_TTL_SECONDS: ${AUTH_CACHE_TTL_SECONDS:-20}
+      PORT: "8000"
+    # Internal only: reachable by the gateway over the compose network, and
+    # published on loopback solely so developers can open /docs directly.
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health',timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    networks: [grobook]
+
+  gateway:
+    build:
+      context: ./backend
+      dockerfile: gateway/Dockerfile
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      MONOLITH_URL: http://monolith:8000
+      # Phase 1B example: SERVICE_URLS={"identity":"http://identity-service:8001"}
+      SERVICE_URLS: ${SERVICE_URLS:-{}}
+      AUTH_MODE: ${GATEWAY_AUTH_MODE:-passthrough}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?set JWT_SECRET_KEY in .env}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-["http://localhost:3000"]}
+      RATE_LIMIT_PER_MINUTE: ${GATEWAY_RATE_LIMIT_PER_MINUTE:-0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      monolith:
+        condition: service_healthy
+    networks: [grobook]
+
+networks:
+  grobook:
+    driver: bridge

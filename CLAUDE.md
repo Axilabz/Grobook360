@@ -906,6 +906,16 @@ These are carried forward across multiple `PROMPT-00N-NOTES.md` files:
   into PROMPT-028's `pwa/syncEngine.ts`. Don't add one without revisiting
   PROMPT-028's own offline-write scope decision (OD-001) first.
 
+## 4b. Microservices migration (branch `feature/microservices-phase-1a`)
+
+Incremental, approved plan: Phase 1A (foundation) -> 1B (extract Identity, Tenant, Master Data) only after explicit approval. **The monolith in `backend/app` still serves the whole API.**
+- `backend/gateway/` — reverse-proxy gateway (routing table `app/core/routing.py`, `AUTH_MODE=passthrough|verify`). Run its tests in their OWN process: `cd backend/gateway && pytest` (the monolith also has a top-level `app` package).
+- `backend/shared/` — framework-only kit (logging, error envelope, JWT verify, correlation, `ServiceClient`). No business logic, no DB. Tests: `cd backend && pytest shared/tests`.
+- `database/documentation/schema-ownership.json` — table -> future owning schema; guarded by `tests/unit/test_schema_ownership.py` (every new model MUST be added to it). No table has been moved.
+- **RLS is ENABLED but not FORCEd and the app role owns the tables, so it is NOT enforced for the app** (`database/documentation/rls-status.md`). Isolation relies on application filtering. Do not assume RLS protects you.
+- Sales/Inventory/Accounting/GST must stay in one process/transaction until Outbox + idempotent consumers + compensation + reconciliation are built and tested (`docs/architecture/transactional-boundary.md`).
+- Run backend tests against a LOCAL Postgres (override `DATABASE_URL`), never the Supabase DB: integration tests commit real rows.
+
 ## 5. What's Pending / Next Steps
 
 - **PROMPT-030 onward**: no further prompts have been given yet.

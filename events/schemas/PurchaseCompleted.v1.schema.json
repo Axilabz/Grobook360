@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://grobook360.example/events/PurchaseCompleted.v1.schema.json",
+  "title": "PurchaseCompleted",
+  "description": "A Purchase Invoice reached POSTED.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "event_type": {
+      "const": "PurchaseCompleted"
+    },
+    "event_version": {
+      "const": 1
+    },
+    "producer": {
+      "const": "purchase"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "purchase_invoice_id",
+        "invoice_number",
+        "supplier_id",
+        "invoice_date",
+        "grand_total"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "purchase_invoice_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "invoice_number": {
+          "type": "string"
+        },
+        "supplier_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "invoice_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "grand_total": {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d{1,4})?$",
+          "description": "Decimal as string - never a float"
+        }
+      }
+    }
+  }
+}

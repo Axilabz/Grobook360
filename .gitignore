@@ -32,3 +32,6 @@ backend/.pytest_cache
 
 # Database exports (large, contain data)
 Db/
+
+# root compose env
+/.env

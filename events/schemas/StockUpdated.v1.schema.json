@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://grobook360.example/events/StockUpdated.v1.schema.json",
+  "title": "StockUpdated",
+  "description": "A stock_ledger_entry was appended.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "event_type": {
+      "const": "StockUpdated"
+    },
+    "event_version": {
+      "const": 1
+    },
+    "producer": {
+      "const": "inventory"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "ledger_entry_id",
+        "product_id",
+        "movement_type",
+        "quantity_delta",
+        "balance_after",
+        "source_type",
+        "source_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "ledger_entry_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "product_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "location_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "movement_type": {
+          "type": "string"
+        },
+        "quantity_delta": {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d{1,4})?$",
+          "description": "Decimal as string - never a float"
+        },
+        "balance_after": {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d{1,4})?$",
+          "description": "Decimal as string - never a float"
+        },
+        "source_type": {
+          "type": "string"
+        },
+        "source_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    }
+  }
+}

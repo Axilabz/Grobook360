@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://grobook360.example/events/JournalEntryCreated.v1.schema.json",
+  "title": "JournalEntryCreated",
+  "description": "A balanced journal entry was posted.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "event_type": {
+      "const": "JournalEntryCreated"
+    },
+    "event_version": {
+      "const": 1
+    },
+    "producer": {
+      "const": "accounting"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "journal_entry_id",
+        "journal_number",
+        "source_type",
+        "source_id",
+        "entry_date",
+        "total_debit",
+        "total_credit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "journal_entry_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "journal_number": {
+          "type": "string"
+        },
+        "source_type": {
+          "type": "string"
+        },
+        "source_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "posting_event_type": {
+          "type": "string"
+        },
+        "entry_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "total_debit": {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d{1,4})?$",
+          "description": "Decimal as string - never a float"
+        },
+        "total_credit": {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d{1,4})?$",
+          "description": "Decimal as string - never a float"
+        }
+      }
+    }
+  }
+}

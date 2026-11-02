@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://grobook360.example/events/InvoiceCancelled.v1.schema.json",
+  "title": "InvoiceCancelled",
+  "description": "A previously posted Sales Invoice was cancelled/reversed.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "event_type": {
+      "const": "InvoiceCancelled"
+    },
+    "event_version": {
+      "const": 1
+    },
+    "producer": {
+      "const": "sales"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "invoice_id",
+        "invoice_number",
+        "cancelled_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "invoice_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "invoice_number": {
+          "type": "string"
+        },
+        "cancelled_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    }
+  }
+}

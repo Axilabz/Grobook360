@@ -1,0 +1,90 @@
+{
+  "_comment": "Target PostgreSQL schema / owning service per existing table. Phase 1A: DOCUMENTATION ONLY - no table has been moved; all tables remain in `public`. Consumed by backend/tests/unit/test_schema_ownership.py.",
+  "current_schema": "public",
+  "owners": {
+    "identity": [
+      "auth_session",
+      "password_reset_token",
+      "permission",
+      "role",
+      "role_permission",
+      "user",
+      "user_role"
+    ],
+    "tenant": [
+      "integration_configuration",
+      "invoice_template_configuration",
+      "tenant"
+    ],
+    "master_data": [
+      "location",
+      "product",
+      "product_unit_conversion",
+      "unit_of_measure"
+    ],
+    "inventory": [
+      "stock_adjustment",
+      "stock_ledger_entry"
+    ],
+    "sales": [
+      "credit_debit_note",
+      "credit_debit_note_line",
+      "customer",
+      "delivery_challan",
+      "delivery_challan_line",
+      "einvoice",
+      "eway_bill",
+      "sales_estimate",
+      "sales_estimate_line",
+      "sales_invoice",
+      "sales_invoice_line",
+      "sales_order",
+      "sales_order_line",
+      "sales_return",
+      "sales_return_line"
+    ],
+    "purchase": [
+      "goods_receipt",
+      "goods_receipt_line",
+      "purchase_invoice",
+      "purchase_invoice_line",
+      "purchase_order",
+      "purchase_order_line",
+      "purchase_return",
+      "purchase_return_line",
+      "supplier"
+    ],
+    "accounting": [
+      "account_mapping",
+      "accounting_period",
+      "chart_of_account",
+      "journal_entry",
+      "journal_line",
+      "payment",
+      "payment_allocation"
+    ],
+    "gst": [
+      "gst_transaction",
+      "gst_transaction_line",
+      "integration_operation"
+    ],
+    "payroll": [
+      "attendance",
+      "employee",
+      "leave_request",
+      "payroll_period",
+      "payroll_record",
+      "payroll_record_line",
+      "payroll_run",
+      "salary_component",
+      "salary_structure",
+      "salary_structure_line"
+    ],
+    "analytics": [],
+    "platform_shared": [
+      "audit_log",
+      "document_number_sequence",
+      "idempotency_key"
+    ]
+  }
+}

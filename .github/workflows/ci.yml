@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, "feature/**"]
+
+jobs:
+  gateway-and-shared:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install -r backend/gateway/requirements-test.txt
+      - name: shared kit
+        working-directory: backend
+        run: python -m pytest shared/tests -q
+      - name: gateway
+        working-directory: backend/gateway
+        run: python -m pytest -q
+
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: saas_app, POSTGRES_PASSWORD: ci-only, POSTGRES_DB: saas_ci }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U saas_app" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ENVIRONMENT: testing
+      DATABASE_URL: postgresql://saas_app:ci-only@localhost:5432/saas_ci
+      JWT_SECRET_KEY: ci-only-secret-ci-only-secret-ci-only-secret
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install -r backend/requirements/test.txt
+      - name: migrate
+        working-directory: backend
+        run: alembic upgrade head
+      - name: tests
+        working-directory: backend
+        run: python -m pytest tests -q
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t grobook-monolith backend
+      - run: docker build -f backend/gateway/Dockerfile -t grobook-gateway backend
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci
+      - run: npx vitest run
+      - run: npm run build

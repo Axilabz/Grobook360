@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://grobook360.example/events/InvoiceCreated.v1.schema.json",
+  "title": "InvoiceCreated",
+  "description": "A Sales Invoice reached POSTED.",
+  "allOf": [
+    {
+      "$ref": "envelope.schema.json"
+    }
+  ],
+  "properties": {
+    "event_type": {
+      "const": "InvoiceCreated"
+    },
+    "event_version": {
+      "const": 1
+    },
+    "producer": {
+      "const": "sales"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "invoice_id",
+        "invoice_number",
+        "customer_id",
+        "invoice_date",
+        "grand_total"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "invoice_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "invoice_number": {
+          "type": "string"
+        },
+        "invoice_type": {
+          "type": "string"
+        },
+        "customer_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "invoice_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "taxable_amount": {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d{1,4})?$",
+          "description": "Decimal as string - never a float"
+        },
+        "tax_amount": {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d{1,4})?$",
+          "description": "Decimal as string - never a float"
+        },
+        "grand_total": {
+          "type": "string",
+          "pattern": "^-?\\d+(\\.\\d{1,4})?$",
+          "description": "Decimal as string - never a float"
+        }
+      }
+    }
+  }
+}
