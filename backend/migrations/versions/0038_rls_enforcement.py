@@ -187,7 +187,13 @@ def upgrade() -> None:
         bare = table.strip('"')
         op.execute(f"GRANT SELECT ({cols}) ON {table} TO {DEFINER_ROLE}")
         op.execute(f"DROP POLICY IF EXISTS pre_auth_definer_select ON {table}")
-        op.execute(f"CREATE POLICY pre_auth_definer_select ON {table} FOR SELECT TO {DEFINER_ROLE} USING (true)")
+        # `TO role` also matches every MEMBER of the role (the migration/owner role is one, so it
+        # can hand function ownership over). current_user is the role actually executing: it is the
+        # definer only inside the SECURITY DEFINER functions, never for a member's own session.
+        op.execute(
+            f"CREATE POLICY pre_auth_definer_select ON {table} FOR SELECT TO {DEFINER_ROLE} "
+            f"USING (current_user = '{DEFINER_ROLE}')"
+        )
 
     # --- 3. functions (created by the owner, then handed to the definer role) --
     op.execute(f"GRANT CREATE ON SCHEMA public TO {DEFINER_ROLE}")

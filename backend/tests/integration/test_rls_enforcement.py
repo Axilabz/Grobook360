@@ -417,3 +417,137 @@ async def test_concurrent_requests_for_different_tenants_never_see_each_other(tw
         await asyncio.gather(*[worker(i) for i in range(60)])
     finally:
         await eng.dispose()
+
+
+# --- every tenant table, including tables that are empty ---------------------------------------------------------
+#
+# The matrix above can only exercise tables that happen to hold rows. This test
+# makes EVERY tenant table behavioural by seeding two minimal rows inside a
+# transaction on the OWNER connection that is always rolled back: constraints
+# that would stop a skeleton row (NOT NULL / CHECK / FOREIGN KEY) are dropped
+# and the table briefly un-FORCEd - all transactional DDL, nothing persists.
+# PostgreSQL evaluates the RLS WITH CHECK before those constraints, so the
+# policy is what is under test, not the constraints.
+#
+# Queries then run with FORCE restored, as the runtime role when the owner may
+# `SET ROLE` to it, otherwise as the owner itself (FORCE binds the owner too);
+# the mode used per table is recorded and printed.
+
+
+def _owner_engine():
+    from app.core.config import get_settings
+
+    url = get_settings().migration_database_url
+    if not url:
+        pytest.skip("MIGRATION_DATABASE_URL (owner role) is required for the synthetic per-table matrix")
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return create_async_engine(url, connect_args=_connect_args)
+
+
+async def _seed_skeleton_rows(conn, table: str, key: str, tenants: tuple) -> None:
+    await conn.execute(text(f'ALTER TABLE "{table}" NO FORCE ROW LEVEL SECURITY'))
+    cons = (
+        await conn.execute(
+            text("SELECT conname FROM pg_constraint WHERE conrelid = to_regclass(:t) AND contype IN ('f','c')"),
+            {"t": f'public."{table}"'},
+        )
+    ).scalars().all()
+    for c in cons:
+        await conn.execute(text(f'ALTER TABLE "{table}" DROP CONSTRAINT "{c}"'))
+    notnull = (
+        await conn.execute(
+            text(
+                """SELECT a.attname FROM pg_attribute a WHERE a.attrelid = to_regclass(:t) AND a.attnum > 0 AND NOT a.attisdropped
+                   AND a.attnotnull AND a.attname <> :k AND a.attname <> 'id'
+                   AND NOT EXISTS (SELECT 1 FROM pg_index i WHERE i.indrelid = a.attrelid AND i.indisprimary AND a.attnum = ANY (i.indkey))"""
+            ),
+            {"t": f'public."{table}"', "k": key},
+        )
+    ).scalars().all()
+    for col in notnull:
+        await conn.execute(text(f'ALTER TABLE "{table}" ALTER COLUMN "{col}" DROP NOT NULL'))
+    has_id = (
+        await conn.execute(
+            text("SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name=:t AND column_name='id')"),
+            {"t": table},
+        )
+    ).scalar_one()
+    for tid in tenants:
+        cols, vals = (f'"{key}", "id"', ":tid, gen_random_uuid()") if has_id and key != "id" else (f'"{key}"', ":tid")
+        await conn.execute(text(f'INSERT INTO "{table}" ({cols}) VALUES ({vals})'), {"tid": tid})
+    await conn.execute(text(f'ALTER TABLE "{table}" FORCE ROW LEVEL SECURITY'))
+
+
+async def _in_savepoint(conn, sql: str, params: dict) -> str:
+    """Run one statement in a savepoint. Returns 'rls', 'privilege', 'constraint' or 'ok'."""
+    sp = await conn.begin_nested()
+    try:
+        await conn.execute(text(sql), params)
+    except DBAPIError as exc:
+        await sp.rollback()
+        msg = str(exc.orig)
+        if "row-level security" in msg:
+            return "rls"
+        if "permission denied" in msg:
+            return "privilege"
+        return "constraint"
+    await sp.rollback()
+    return "ok"
+
+
+async def test_every_tenant_table_enforces_cross_tenant_writes_including_empty_tables(two_orgs):
+    _, _, org_a, org_b = two_orgs
+    A, B = uuid.UUID(org_a["tenant_id"]), uuid.UUID(org_b["tenant_id"])
+    owner = _owner_engine()
+    modes: dict[str, str] = {}
+    try:
+        tables = await _tenant_tables()
+        assert len(tables) >= 55
+        for table, key in tables:
+            async with owner.connect() as conn:
+                trans = await conn.begin()
+                try:
+                    if key == "tenant_id":
+                        await _seed_skeleton_rows(conn, table, key, (A, B))
+                    # run as the real runtime role when possible; else as the owner (still bound by FORCE)
+                    sp = await conn.begin_nested()
+                    try:
+                        await conn.execute(text("SET LOCAL ROLE grobook_app"))
+                        modes[table] = "grobook_app"
+                        await sp.commit()
+                    except DBAPIError:
+                        await sp.rollback()
+                        modes[table] = "owner-under-FORCE"
+                    append_only = table in APPEND_ONLY
+
+                    for me, other in ((A, B), (B, A)):
+                        await conn.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(me)})
+                        seen = (await conn.execute(text(f'SELECT DISTINCT "{key}" FROM "{table}"'))).scalars().all()
+                        assert seen and set(seen) <= {me}, f"{table}: ctx {me} saw {seen}"
+                        if key == "tenant_id":
+                            assert len(seen) == 1
+                            if not append_only:
+                                upd = await conn.execute(text(f'UPDATE "{table}" SET "{key}" = "{key}" WHERE "{key}" = :o'), {"o": other})
+                                assert upd.rowcount == 0, f"{table}: UPDATE reached another tenant"
+                                dele = await conn.execute(text(f'DELETE FROM "{table}" WHERE "{key}" = :o'), {"o": other})
+                                assert dele.rowcount == 0, f"{table}: DELETE reached another tenant"
+                            assert await _in_savepoint(conn, f'INSERT INTO "{table}" ("{key}") VALUES (:o)', {"o": other}) == "rls", (
+                                f"{table}: cross-tenant INSERT was not refused by the policy"
+                            )
+                            moved = await _in_savepoint(conn, f'UPDATE "{table}" SET "{key}" = :o WHERE "{key}" = :me', {"o": other, "me": me})
+                            if append_only:  # refused by privilege (runtime role) or by the immutability trigger / policy (owner)
+                                assert moved in ("privilege", "constraint", "rls"), f"{table}: append-only row was changed"
+                            else:
+                                assert moved == "rls", f"{table}: row-move gave {moved}"
+                            own = await _in_savepoint(conn, f'INSERT INTO "{table}" ("{key}") VALUES (:me)', {"me": me})
+                            assert own != "rls", f"{table}: own-tenant INSERT refused by the policy"
+                        else:  # the tenant table itself, keyed by id
+                            assert await _in_savepoint(conn, f'UPDATE "{table}" SET id = :o WHERE id = :me', {"o": other, "me": me}) == "rls"
+                    await conn.execute(text("SELECT set_config('app.tenant_id', '', true)"))
+                    assert (await conn.execute(text(f'SELECT count(*) FROM "{table}"'))).scalar_one() == 0, f"{table}: rows visible without context"
+                finally:
+                    await trans.rollback()
+        print("per-table matrix modes:", {m: sum(1 for v in modes.values() if v == m) for m in set(modes.values())}, "tables:", len(tables))
+    finally:
+        await owner.dispose()

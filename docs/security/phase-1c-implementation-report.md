@@ -73,3 +73,12 @@ The two failures in the full run (a 401 where a 422 was expected, and one RLS-ma
 - Tenant-less/platform-admin users unsupported by design.
 - Per-service roles (Phase 1B) will reuse `rls_bootstrap_roles.sql` with additional roles.
 - Docker, GitHub CI, forwarded-IP verification remain pending (Phase 1A list).
+
+## 9. Addendum — defect found by the all-tables synthetic matrix (fixed before staging)
+The new `test_every_tenant_table_enforces_cross_tenant_writes_including_empty_tables` (seeds two skeleton rows per table inside a rolled-back owner transaction, then checks SELECT/UPDATE/DELETE/INSERT/row-move per table, including empty tables) found that the `pre_auth_definer_select` policy (`TO grobook_definer USING (true)`) also applied to the **owner/migration role**, because `TO role` matches every member of the role and the owner must be a member to hand function ownership over. Effect: the owner (never the runtime role) could read all rows of `user`, `tenant`, `password_reset_token`, `idempotency_key` despite FORCE. Fix: policy is now `USING (current_user = 'grobook_definer')`, true only inside the definer functions. Migration 0038 was re-applied locally (downgrade + upgrade, data untouched) and all RLS/isolation/auth tests re-run green (40 + 95 passed).
+Also corrected: the statement "FORCE also binds the owner" now holds for all 62 tables.
+
+## 10. Root cause of the two failures in the long run (evidence)
+- `test_rls_enforcement::...with_check` → `TimeoutError (asyncio/timeouts.py)`: Windows System log shows the machine **slept 2026-11-02 18:34:07Z → 18:54:06Z (00:04–00:24 IST)**; `auth_session.issued_at` shows exactly a 20 min 10 s hole in test activity (00:04:02 → 00:24:13 IST) and the DB connection timed out when the machine resumed.
+- `test_sales_orders::test_create_inactive_product` → 401: the last session issued before an **8 h 48 m hole in activity (00:29:54 → 09:18:33 IST)** belongs to tenant "Sales Order Test Co" with exactly the rows this test creates (1 product, 1 customer, 0 sales orders); its token expired at 01:29:54 (60-min lifetime) and the test resumed at 09:18 (Windows wake event 09:18:26–29 IST) → expired token → 401.
+Both tests pass in isolation and in their full-file re-runs. Cause is the host sleeping during the run, not Phase 1C.
