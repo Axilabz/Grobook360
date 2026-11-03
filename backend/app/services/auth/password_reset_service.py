@@ -12,7 +12,7 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import auth_cache
@@ -26,6 +26,7 @@ from app.core.error_codes import (
 from app.core.exceptions import AppError
 from app.core.security import generate_reset_token, hash_password, hash_reset_token
 from app.db.base import utcnow
+from app.db.tenant_context import set_tenant_context
 from app.models.auth_session import AuthSession
 from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
@@ -50,18 +51,22 @@ class PasswordResetService:
         self._session = session
 
     async def _resolve_eligible_user(self, email: str) -> User | None:
-        result = await self._session.execute(select(User).where(User.email == email))
-        matches = result.scalars().all()
-
-        if len(matches) != 1:
-            if len(matches) > 1:
-                logger.warning(
-                    "Ambiguous password-reset identifier: multiple accounts share this email — "
-                    "treating as not-found (S24/S8 anti-enumeration)",
-                )
+        # Pre-tenant lookup via a narrow SECURITY DEFINER function (migration
+        # 0038): returns (user_id, tenant_id) only, and nothing when the email
+        # is unknown OR shared by several accounts (treated as not-found —
+        # S24/S8 anti-enumeration). The user row itself is then read under
+        # that tenant's RLS context.
+        row = (
+            await self._session.execute(
+                text("SELECT user_id, tenant_id FROM public.auth_find_reset_user(:email)"), {"email": email}
+            )
+        ).first()
+        if row is None:
             return None
-
-        user = matches[0]
+        await set_tenant_context(self._session, row.tenant_id)
+        user = (await self._session.execute(select(User).where(User.id == row.user_id))).scalar_one_or_none()
+        if user is None:
+            return None
         # Disabled accounts are silently ineligible — same generic response
         # either way (S24). Password reset must never reactivate an account.
         if user.status != "ACTIVE":
@@ -125,10 +130,20 @@ class PasswordResetService:
 
     async def _load_valid_token(self, raw_token: str, *, ip_address: str | None = None) -> PasswordResetToken | None:
         token_hash = hash_reset_token(raw_token)
-        result = await self._session.execute(
-            select(PasswordResetToken).where(PasswordResetToken.token_hash == token_hash)
-        )
-        record = result.scalar_one_or_none()
+        # The token proves identity before any tenant is known; resolve it via
+        # a narrow SECURITY DEFINER function (identifiers only, never the hash
+        # or token), then read the record under that tenant's RLS context.
+        row = (
+            await self._session.execute(
+                text("SELECT token_id, tenant_id FROM public.auth_find_reset_token(:h)"), {"h": token_hash}
+            )
+        ).first()
+        if row is None:
+            return None
+        await set_tenant_context(self._session, row.tenant_id)
+        record = (
+            await self._session.execute(select(PasswordResetToken).where(PasswordResetToken.id == row.token_id))
+        ).scalar_one_or_none()
         if record is None:
             return None
         if record.consumed_at is not None:

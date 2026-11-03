@@ -100,20 +100,29 @@ async def test_audit_log_update_rejected_at_db_level(db_session):
     # enforce this since the app's DB role owns the table; migration 0012 adds
     # a BEFORE UPDATE/DELETE trigger that does (mirrors
     # test_inventory_api_037_ledger_update_rejected_at_db_level's pattern for
-    # stock_ledger_entry).
+    # stock_ledger_entry). Since migration 0038 the runtime role additionally
+    # has no UPDATE/DELETE privilege on the table, so the rejection now comes
+    # from the privilege check first (trigger remains as defence in depth for
+    # owner-run statements).
     from app.db.session import AsyncSessionLocal
     from app.models.audit_log import AuditLog
     from app.models.tenant import Tenant
     from app.services.audit.audit_service import AuditService
     from sqlalchemy.exc import DBAPIError
 
-    tenant = Tenant(business_name="Test Tenant For Audit Immutability")
+    from app.db.tenant_context import set_tenant_context
+
+    # Phase 1C: the tenant row itself is protected by RLS, so the session must
+    # be scoped to the tenant it is about to create.
+    tenant = Tenant(id=uuid.uuid4(), business_name="Test Tenant For Audit Immutability")
+    tenant_id = tenant.id
+    await set_tenant_context(db_session, tenant_id)
     db_session.add(tenant)
     await db_session.flush()
 
     service = AuditService(db_session)
     entry = await service.record(
-        tenant_id=tenant.id,
+        tenant_id=tenant_id,
         actor_user_id=None,
         action="CREATE",
         entity_type="test_entity",
@@ -135,6 +144,7 @@ async def test_audit_log_update_rejected_at_db_level(db_session):
     await db_session.rollback()
 
     async with AsyncSessionLocal() as verify_session:
+        await set_tenant_context(verify_session, tenant_id)
         result = await verify_session.execute(select(AuditLog).where(AuditLog.id == entry_id))
         assert result.scalar_one().action == "CREATE"
 

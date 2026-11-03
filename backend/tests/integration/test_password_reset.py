@@ -262,6 +262,9 @@ async def test_auth_reset_api_021_cross_tenant_token_isolation(client, db_sessio
     await client.post(FORGOT_ENDPOINT, json={"recovery_identifier": email_a})
     token_a = _last_sent_token(ConsolePasswordRecoveryProvider.outbox[0].reset_link)
 
+    from app.db.tenant_context import set_tenant_context
+
+    await set_tenant_context(db_session, uuid.UUID(signup_a["tenant_id"]))  # inspect tenant A's rows explicitly
     record = (
         await db_session.execute(select(PasswordResetToken).order_by(PasswordResetToken.created_at.desc()))
     ).scalars().first()

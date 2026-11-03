@@ -9,13 +9,14 @@ from the resolved user row — never trusted from the request.
 import logging
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.error_codes import AUTH_ACCOUNT_INACTIVE, AUTH_INVALID_CREDENTIALS
 from app.core.exceptions import AuthenticationError, AuthorizationError
 from app.core.security import verify_password
 from app.db.base import utcnow
+from app.db.tenant_context import set_tenant_context
 from app.models.tenant import Tenant
 from app.models.user import User
 from app.services.audit.audit_service import AuditService
@@ -39,20 +40,22 @@ class AuthService:
         self._session = session
 
     async def _resolve_user(self, phone: str) -> User | None:
-        result = await self._session.execute(select(User).where(User.phone == phone))
-        matches = result.scalars().all()
-
-        if len(matches) == 0:
-            return None
-        if len(matches) > 1:
-            # Direct consequence of API-OD-03 (phone uniqueness scope) being
-            # still open — see PROMPT-003-NOTES.md. Never guess; refuse.
-            logger.warning(
-                "Ambiguous login identifier: multiple active accounts share this phone",
-                extra={"extra_fields": {"phone_last4": phone[-4:]}},
+        # Login runs before any tenant is known. Row-level security would hide
+        # every row, so identification goes through a narrow SECURITY DEFINER
+        # function (migration 0038) that returns ONLY (user_id, tenant_id), and
+        # only when exactly one account has this phone (the ambiguity rule from
+        # API-OD-03 — see PROMPT-003-NOTES.md — now lives in the function).
+        # Everything after this point, including reading the user's password
+        # hash, runs under that tenant's RLS context.
+        row = (
+            await self._session.execute(
+                text("SELECT user_id, tenant_id FROM public.auth_find_login_tenant(:phone)"), {"phone": phone}
             )
+        ).first()
+        if row is None:
             return None
-        return matches[0]
+        await set_tenant_context(self._session, row.tenant_id)
+        return (await self._session.execute(select(User).where(User.id == row.user_id))).scalar_one_or_none()
 
     async def _resolve_role_and_permissions(self, user: User) -> tuple[str | None, list[str]]:
         return await resolve_role_and_permissions(self._session, user=user)

@@ -122,22 +122,26 @@ async def test_unauthenticated_and_forged_requests_get_no_data():
 # --- database layer ----------------------------------------------------------
 
 
-async def test_rls_policy_isolates_tenants_when_enforced():
+async def test_rls_policy_isolates_tenants_when_enforced(two_orgs):
     """The tenant_isolation_customer policy is correct once RLS is enforced.
 
-    FORCE ROW LEVEL SECURITY is applied INSIDE a transaction that is always
-    rolled back, so nothing persists and the production posture is unchanged.
+    Before migration 0038 the runtime role owned the table, so FORCE ROW LEVEL
+    SECURITY is applied INSIDE a transaction that is always rolled back (nothing
+    persists). After 0038 it is already FORCEd and the runtime role is not the
+    owner, so the statement is skipped and the same assertions run against the
+    real, permanent configuration. (Full matrix: test_rls_enforcement.py.)
     """
+    a, b, org_a, org_b = two_orgs
+    assert (await a.post(CUSTOMERS, json=_valid_customer_payload())).status_code == 201
+    assert (await b.post(CUSTOMERS, json=_valid_customer_payload())).status_code == 201
+    tenant_a, tenant_b = uuid.UUID(org_a["tenant_id"]), uuid.UUID(org_b["tenant_id"])
+
     async with AsyncSessionLocal() as session:
-        rows = (
-            await session.execute(text("SELECT DISTINCT tenant_id FROM customer WHERE tenant_id IS NOT NULL LIMIT 2"))
-        ).scalars().all()
-        if len(rows) < 2:
-            pytest.skip("needs customers in at least two tenants")
-        tenant_a, tenant_b = rows
 
         try:
-            await session.execute(text('ALTER TABLE "customer" FORCE ROW LEVEL SECURITY'))
+            forced = (await session.execute(text("SELECT relforcerowsecurity FROM pg_class WHERE oid = to_regclass('public.customer')"))).scalar_one()
+            if not forced:
+                await session.execute(text('ALTER TABLE "customer" FORCE ROW LEVEL SECURITY'))
             await session.execute(text("SELECT set_config('app.tenant_id', :t, true)"), {"t": str(tenant_a)})
             visible = (await session.execute(text("SELECT DISTINCT tenant_id FROM customer"))).scalars().all()
             assert visible == [tenant_a]

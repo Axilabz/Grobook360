@@ -70,6 +70,15 @@ async def get_current_user(
     role = claims.get("role")
     ttl = get_settings().auth_cache_ttl_seconds
 
+    # Tenant-less (platform-admin) sessions are unsupported: every tenant-owned
+    # operation must fail closed without a tenant. The tenant comes from the
+    # signature-verified token, and is applied BEFORE the session lookup because
+    # auth_session itself is protected by row-level security (the revocation
+    # check below only sees this tenant's sessions).
+    if tenant_id is None:
+        raise AuthenticationError("Invalid session token", code=AUTH_SESSION_INVALID)
+    await set_tenant_context(session, tenant_id)
+
     permissions = auth_cache.get(jti, ttl)
     if permissions is None:
         session_service = SessionService(session)
@@ -88,9 +97,8 @@ async def get_current_user(
         permissions=permissions,
     )
 
-    # Second line of defense: propagate tenant context into the DB session for RLS.
-    await set_tenant_context(session, context.tenant_id)
-
+    # Tenant context for RLS was applied above (and is re-applied automatically
+    # at the start of any later transaction of this session).
     return context
 
 

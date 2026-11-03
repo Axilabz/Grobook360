@@ -10,7 +10,7 @@ import json
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.error_codes import REG_IDEMPOTENCY_CONFLICT
@@ -51,6 +51,26 @@ class IdempotencyService:
             )
 
         return IdempotencyCheckResult(existing_response=(existing.response_status, existing.response_body))
+
+    async def check_signup(self, *, idempotency_key: str, payload: dict) -> IdempotencyCheckResult:
+        """Sign-up variant of check(): no tenant exists yet, so row-level
+        security hides every idempotency row. Uses the narrow SECURITY DEFINER
+        lookup (migration 0038), which is hard-wired to the sign-up endpoint."""
+        row = (
+            await self._session.execute(
+                text("SELECT request_fingerprint, response_status, response_body FROM public.signup_idempotency_lookup(:k)"),
+                {"k": idempotency_key},
+            )
+        ).first()
+        if row is None:
+            return IdempotencyCheckResult(existing_response=None)
+        if row.request_fingerprint != compute_fingerprint(payload):
+            raise ConflictError(
+                "Idempotency-Key already used with a different request payload",
+                code=REG_IDEMPOTENCY_CONFLICT,
+            )
+        body = row.response_body
+        return IdempotencyCheckResult(existing_response=(row.response_status, json.loads(body) if isinstance(body, str) else body))
 
     async def store(
         self,

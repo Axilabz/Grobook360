@@ -65,9 +65,7 @@ async def sign_up(
     request_payload = payload.model_dump(mode="json")
     idempotency = IdempotencyService(session)
 
-    check_result = await idempotency.check(
-        idempotency_key=idempotency_key, endpoint=_ENDPOINT_NAME, payload=request_payload
-    )
+    check_result = await idempotency.check_signup(idempotency_key=idempotency_key, payload=request_payload)
     if check_result.existing_response is not None:
         _, body = check_result.existing_response
         return body

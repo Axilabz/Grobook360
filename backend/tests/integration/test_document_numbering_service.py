@@ -66,7 +66,11 @@ async def test_next_number_resets_per_financial_year(db_session):
 async def test_next_number_scoped_per_tenant(db_session):
     tenant_a = _make_tenant("Numbering Tenant A")
     tenant_b = _make_tenant("Numbering Tenant B")
-    db_session.add_all([tenant_a, tenant_b])
+    # Phase 1C: a tenant row is only insertable under its own tenant context,
+    # so each tenant is flushed separately (the session follows the tenant being added).
+    db_session.add(tenant_a)
+    await db_session.flush()
+    db_session.add(tenant_b)
     await db_session.flush()
 
     service = DocumentNumberingService(db_session)
@@ -84,8 +88,13 @@ async def test_next_number_concurrent_calls_produce_unique_numbers(db_session):
     db_session.add(tenant)
     await db_session.commit()
 
+    from app.db.tenant_context import set_tenant_context
+
+    tenant_id = tenant.id  # captured while still loaded (see commit() below)
+
     async def _allocate() -> str:
         async with AsyncSessionLocal() as session:
+            await set_tenant_context(session, tenant_id)
             service = DocumentNumberingService(session)
             number = await service.next_number(
                 tenant=tenant, document_type="SALES_INVOICE", prefix="INV", as_of=date(2026, 6, 1)

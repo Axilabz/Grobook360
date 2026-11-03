@@ -11,7 +11,9 @@ already enforced via role checks, not a new business decision. See
 PROMPT-006-NOTES.md.
 """
 
-from sqlalchemy import func, select
+import uuid
+
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,6 +21,7 @@ from app.core.error_codes import REG_DUPLICATE_REGISTRATION, REG_GST_VERIFICATIO
 from app.core.exceptions import ConflictError
 from app.core.security import hash_password
 from app.db.base import utcnow
+from app.db.tenant_context import set_tenant_context
 from app.models.role import Role
 from app.models.tenant import Tenant
 from app.models.user import User
@@ -43,13 +46,16 @@ class SignUpService:
         # CustomerService._next_customer_code's "count + attempt, retry on
         # IntegrityError" pattern — see the retry loop in
         # create_tenant_and_owner below.
-        count_stmt = select(func.count(Tenant.id))
-        count = (await self._session.execute(count_stmt)).scalar_one()
+        # Row-level security hides other tenants, so the platform-wide count
+        # comes from a narrow SECURITY DEFINER function (aggregate only).
+        count = (await self._session.execute(text("SELECT public.signup_tenant_count()"))).scalar_one()
         return f"TEN-{count + 1 + attempt:04d}"
 
     async def _check_phone_uniqueness_platform_wide(self, phone: str) -> None:
-        result = await self._session.execute(select(User).where(User.phone == phone))
-        if result.scalar_one_or_none() is not None:
+        in_use = (
+            await self._session.execute(text("SELECT public.signup_phone_in_use(:p)"), {"p": phone})
+        ).scalar_one()
+        if in_use:
             raise ConflictError(
                 "This phone number is already registered", code=REG_DUPLICATE_REGISTRATION
             )
@@ -76,11 +82,18 @@ class SignUpService:
         # "tenant" scope: no existing tenant to conflict with yet at sign-up time;
         # nothing to check here by construction (see PROMPT-002-NOTES.md).
 
+        # The tenant does not exist yet, so its id is chosen here and the RLS
+        # context is set to it BEFORE the first insert: every row created below
+        # must satisfy the policy for exactly this tenant (WITH CHECK).
+        new_tenant_id = uuid.uuid4()
+        await set_tenant_context(self._session, new_tenant_id)
+
         last_error: Exception | None = None
         tenant: Tenant | None = None
         for attempt in range(_MAX_CODE_ATTEMPTS):
             code = await self._next_tenant_code(attempt)
             tenant = Tenant(
+                id=new_tenant_id,
                 tenant_code=code,
                 business_name=payload.organization.business_name,
                 business_type=payload.organization.business_type,

@@ -35,3 +35,6 @@ Db/
 
 # root compose env
 /.env
+
+# Phase 1C local/staging credentials
+backend/.env.rls.*

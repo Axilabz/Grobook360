@@ -83,10 +83,16 @@ async def call(
     return body.get("data", body)
 
 
-async def tenant_exists(business_name: str) -> bool:
+async def tenant_exists(business_name: str, owner_phone: str) -> bool:
+    # Row-level security (migration 0038) hides every tenant from a session with
+    # no tenant context, so existence is checked through the same narrow
+    # pre-login function the login flow uses (identifiers only), keyed by the
+    # demo owner's fixed phone number.
+    from sqlalchemy import text
+
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(Tenant).where(Tenant.business_name == business_name))
-        return result.scalar_one_or_none() is not None
+        row = (await session.execute(text("SELECT 1 FROM public.auth_find_login_tenant(:p)"), {"p": owner_phone})).first()
+        return row is not None
 
 
 async def find_one(client: AsyncClient, path: str, predicate: Callable[[dict], bool]) -> dict | None:
@@ -289,7 +295,7 @@ async def seed_umayal() -> dict:
     async with AsyncClient(transport=transport, base_url="http://test") as owner_client:
         print(f"\n=== {business_name} ===")
 
-        if await tenant_exists(business_name):
+        if await tenant_exists(business_name, "9800000001"):
             print("[RESUME] Tenant already exists -- resuming/completing it via the API.")
         else:
             signup = await create_tenant_owner(
@@ -884,7 +890,7 @@ async def seed_atsm() -> dict:
     async with AsyncClient(transport=transport, base_url="http://test") as owner_client:
         print(f"\n=== {business_name} ===")
 
-        if await tenant_exists(business_name):
+        if await tenant_exists(business_name, "9800002101"):
             print("[RESUME] Tenant already exists -- resuming/completing it via the API.")
         else:
             signup = await create_tenant_owner(
