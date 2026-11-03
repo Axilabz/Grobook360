@@ -26,10 +26,17 @@ SELECT format('CREATE ROLE grobook_app LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS
  WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'grobook_app') \gexec
 
 -- Re-running with a new password rotates it.
-SELECT format('ALTER ROLE grobook_app PASSWORD %L NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB', :'app_pw') \gexec
+-- Only the password: a role without SUPERUSER (Supabase's `postgres`) may not re-state the SUPERUSER / BYPASSRLS /
+-- REPLICATION attributes even as NO...; the attributes were fixed at CREATE ROLE and are verified below.
+SELECT format('ALTER ROLE grobook_app PASSWORD %L', :'app_pw') \gexec
 
 -- The migration role must be able to hand function ownership to grobook_definer.
 SELECT format('GRANT grobook_definer TO %I', :'owner_role') \gexec
+
+-- Lets the owner run `SET ROLE grobook_app` (it can only DROP privileges that way). Used by the
+-- verification tests; essential on Supabase where the owner (`postgres`) has BYPASSRLS and so
+-- cannot demonstrate policy enforcement as itself.
+SELECT format('GRANT grobook_app TO %I', :'owner_role') \gexec
 
 -- Allow the app role to connect (Supabase / local databases grant CONNECT to PUBLIC by default; explicit is safer).
 SELECT format('GRANT CONNECT ON DATABASE %I TO grobook_app', current_database()) \gexec

@@ -125,6 +125,24 @@ _DEFINER_READS = {
 }
 
 
+# Supabase only: roles behind the public Data API (PostgREST). Supabase's default
+# privileges give them ALL on every table and EXECUTE on every function the owner
+# creates in `public`; for this application that would expose the pre-login
+# identifier lookups at /rest/v1/rpc/*. They are revoked here (a no-op where the
+# roles do not exist, e.g. plain PostgreSQL). `service_role` (BYPASSRLS, holder of
+# the secret service key) is deliberately NOT touched: see docs/security.
+API_ROLES = ("anon", "authenticated")
+TRIGGER_FUNCTIONS = ("prevent_audit_log_mutation()", "prevent_stock_ledger_entry_mutation()")
+
+
+def _revoke_from_api_roles(object_sql: str) -> None:
+    for role in API_ROLES:
+        op.execute(
+            f"DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') THEN "
+            f"REVOKE ALL ON {object_sql} FROM {role}; END IF; END $$"
+        )
+
+
 def _require_roles(bind) -> None:
     present = {r[0] for r in bind.execute(sa.text("SELECT rolname FROM pg_roles WHERE rolname IN (:a, :d)"), {"a": APP_ROLE, "d": DEFINER_ROLE})}
     missing = {APP_ROLE, DEFINER_ROLE} - present
@@ -166,6 +184,12 @@ def upgrade() -> None:
     _require_roles(bind)
     tenant_tables, id_tables = _classify(bind)
 
+    # --- 0. global reference table: explicitly NO row-level security ---------------
+    # `permission` has no tenant and is read/inserted by the runtime role. Supabase runs an
+    # event trigger (`rls_auto_enable`) that ENABLEs RLS on every table created in `public`; with
+    # no policy that hides every row from a non-owner role. Make the intended state explicit.
+    op.execute('ALTER TABLE "permission" DISABLE ROW LEVEL SECURITY')
+
     # --- 1. policies + FORCE -------------------------------------------------
     for t in tenant_tables:
         op.execute(f'ALTER TABLE "{t}" ENABLE ROW LEVEL SECURITY')
@@ -201,12 +225,25 @@ def upgrade() -> None:
         name = signature.split("(")[0]
         op.execute(f"DROP FUNCTION IF EXISTS public.{signature}")
         op.execute(ddl)
-        op.execute(f"ALTER FUNCTION public.{signature} OWNER TO {DEFINER_ROLE}")
+        # Revoke while the migrating role is still the owner/grantor of the default grants
+        # (after ALTER OWNER the grantor changes and these REVOKEs would no longer match).
         op.execute(f"REVOKE ALL ON FUNCTION public.{signature} FROM PUBLIC")
+        _revoke_from_api_roles(f"FUNCTION public.{signature}")
+        op.execute(f"ALTER FUNCTION public.{signature} OWNER TO {DEFINER_ROLE}")
         op.execute(f"GRANT EXECUTE ON FUNCTION public.{signature} TO {APP_ROLE}")
     op.execute(f"REVOKE CREATE ON SCHEMA public FROM {DEFINER_ROLE}")
+    # The immutability trigger functions (migrations 0011/0012) also got Supabase's default EXECUTE grants.
+    # They cannot be invoked outside a trigger, but nothing in the application schema should be callable
+    # by the public API roles. (Supabase's own `rls_auto_enable` is deliberately left alone.)
+    for fn in TRIGGER_FUNCTIONS:
+        # PUBLIC holds EXECUTE by default and the API roles inherit it. A trigger function needs no EXECUTE
+        # grant at fire time (only to CREATE TRIGGER), so revoking it does not affect the triggers.
+        op.execute(f"REVOKE ALL ON FUNCTION public.{fn} FROM PUBLIC")
+        _revoke_from_api_roles(f"FUNCTION public.{fn}")
 
     # --- 4. runtime role grants (least privilege) --------------------------------
+    _revoke_from_api_roles("ALL TABLES IN SCHEMA public")
+    _revoke_from_api_roles("ALL SEQUENCES IN SCHEMA public")
     op.execute(f"GRANT USAGE ON SCHEMA public TO {APP_ROLE}")
     for t in tenant_tables + id_tables:
         privs = "SELECT, INSERT" if t in APPEND_ONLY else "SELECT, INSERT, UPDATE, DELETE"
@@ -235,5 +272,7 @@ def downgrade() -> None:
         else:
             op.execute(f'CREATE POLICY tenant_isolation_{t} ON "{t}" USING ({_OLD_USING})')
 
+    for fn in TRIGGER_FUNCTIONS:  # restore the default PUBLIC EXECUTE grant
+        op.execute(f"GRANT EXECUTE ON FUNCTION public.{fn} TO PUBLIC")
     op.execute(f"REVOKE ALL ON ALL TABLES IN SCHEMA public FROM {APP_ROLE}")
     op.execute(f"REVOKE USAGE ON SCHEMA public FROM {APP_ROLE}")

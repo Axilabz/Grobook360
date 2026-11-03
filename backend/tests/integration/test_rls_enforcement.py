@@ -104,9 +104,11 @@ async def test_every_table_is_classified_forced_and_has_using_and_with_check():
             assert any(cmd == "ALL" and "app.tenant_id" in (q or "") and "app.tenant_id" in (w or "") for cmd, q, w in pol), (
                 f"{name}: needs a FOR ALL policy with both USING and WITH CHECK on app.tenant_id"
             )
-        # documented exceptions
-        for name in NO_RLS_TABLES:
-            assert not await _scalar(s, "SELECT relrowsecurity FROM pg_class WHERE oid = to_regclass(:t)", t=f'public."{name}"')
+        # documented exceptions: `permission` is global reference data the runtime role must READ, so RLS must be
+        # off for it (Supabase's rls_auto_enable trigger would otherwise leave it enabled with no policy = invisible).
+        assert not await _scalar(s, "SELECT relrowsecurity FROM pg_class WHERE oid = to_regclass('public.permission')")
+        assert await _scalar(s, "SELECT count(*) FROM permission") >= 1, "runtime role cannot read the permission table"
+        # alembic_version: no privilege at all for the runtime role (its RLS flag is irrelevant)
         assert not await _scalar(s, "SELECT has_table_privilege(current_user, 'alembic_version', 'SELECT')")
         for priv in ("UPDATE", "DELETE", "TRUNCATE"):
             assert not await _scalar(s, "SELECT has_table_privilege(current_user, 'permission', :p)", p=priv)
@@ -279,6 +281,8 @@ async def test_definer_functions_are_locked_down():
                 "SELECT proname FROM pg_proc WHERE pronamespace='public'::regnamespace AND prosecdef ORDER BY 1",
             )
         ]
+        # `rls_auto_enable` is a Supabase-managed event-trigger function (not ours); nothing else may be SECURITY DEFINER.
+        names = [n for n in names if n != "rls_auto_enable"]
         assert set(names) == {
             "auth_find_login_tenant", "auth_find_reset_user", "auth_find_reset_token",
             "signup_tenant_count", "signup_phone_in_use", "signup_idempotency_lookup",
@@ -288,7 +292,7 @@ async def test_definer_functions_are_locked_down():
             """SELECT p.proname, pg_get_userbyid(p.proowner), p.proconfig, p.proacl::text, l.lanname,
                       has_function_privilege(current_user, p.oid, 'EXECUTE')
                FROM pg_proc p JOIN pg_language l ON l.oid = p.prolang
-               WHERE p.pronamespace='public'::regnamespace AND p.prosecdef""",
+               WHERE p.pronamespace='public'::regnamespace AND p.prosecdef AND p.proname <> 'rls_auto_enable'""",
         ):
             name, owner, config, acl, lang, can_exec = row
             assert owner == "grobook_definer", f"{name} must be owned by the column-restricted definer role, not {owner}"
@@ -551,3 +555,30 @@ async def test_every_tenant_table_enforces_cross_tenant_writes_including_empty_t
         print("per-table matrix modes:", {m: sum(1 for v in modes.values() if v == m) for m in set(modes.values())}, "tables:", len(tables))
     finally:
         await owner.dispose()
+
+
+async def test_supabase_api_roles_have_no_access_to_application_objects():
+    """Supabase's default privileges would hand anon/authenticated (the public Data API roles)
+    ALL on every table and EXECUTE on every function. Migration 0038 revokes that; no-op elsewhere."""
+    async with scoped() as s:
+        roles = [r[0] for r in await _all(s, "SELECT rolname FROM pg_roles WHERE rolname IN ('anon', 'authenticated')")]
+        if not roles:
+            pytest.skip("no Supabase API roles on this server")
+        for role in roles:
+            tables = await _all(
+                s,
+                """SELECT c.relname FROM pg_class c WHERE c.relnamespace='public'::regnamespace AND c.relkind IN ('r','S')
+                   AND (has_table_privilege(:r, c.oid, 'SELECT') OR has_table_privilege(:r, c.oid, 'INSERT')
+                        OR has_table_privilege(:r, c.oid, 'UPDATE') OR has_table_privilege(:r, c.oid, 'DELETE')
+                        OR has_table_privilege(:r, c.oid, 'TRUNCATE') OR has_table_privilege(:r, c.oid, 'REFERENCES')
+                        OR has_table_privilege(:r, c.oid, 'TRIGGER'))""",
+                r=role,
+            )
+            assert tables == [], f"{role} can touch {tables}"
+            funcs = await _all(
+                s,
+                "SELECT p.proname FROM pg_proc p WHERE p.pronamespace='public'::regnamespace AND p.proname <> 'rls_auto_enable' "
+                "AND has_function_privilege(:r, p.oid, 'EXECUTE')",
+                r=role,
+            )
+            assert funcs == [], f"{role} can execute {funcs}"
